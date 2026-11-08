@@ -1,0 +1,11 @@
+metric,score,min_value,max_value,customers
+monetary_brl,1,9.59,55.36,18997
+monetary_brl,2,55.36,87.5,18997
+monetary_brl,3,87.51,133.05,18997
+monetary_brl,4,133.05,209.11,18996
+monetary_brl,5,209.11,13664.08,18996
+recency_days,1,389.0,730.0,18996
+recency_days,2,274.0,389.0,18996
+recency_days,3,183.0,274.0,18997
+recency_days,4,99.0,183.0,18997
+recency_days,5,1.0,99.0,18997

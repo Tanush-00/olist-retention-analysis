@@ -1,0 +1,11 @@
+category,orders,avg_review_score,pct_1_2_star,late_pct
+office_furniture,1262,3.49,26.1,7.9
+unknown,1425,3.86,21.7,7.5
+bed_bath_table,9295,3.9,18.8,6.9
+furniture_decor,6375,3.92,19.0,6.9
+computers_accessories,6616,3.95,18.1,6.4
+telephony,4154,3.95,16.6,6.9
+baby,2844,4.03,16.2,7.5
+watches_gifts,5557,4.03,16.0,7.1
+consoles_games,1044,4.05,14.6,5.6
+electronics,2524,4.05,15.5,7.6

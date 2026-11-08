@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Olist Retention Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10); --border-strong: rgba(11,11,11,0.18);
+  --tooltip-bg: #ffffff; --accent-soft: #eef4fc;
+  --s1: #2a78d6; --s2: #eb6834; --late: #e34948; --neutral: #c3c2b7;
+  --div: #1c5cab,#6da7ec,#b5b4ad,#f2a3a2,#e8706f,#d43d3c,#a82a2a;
+  --ord: #86b6ef,#5598e7,#2a78d6,#1c5cab,#0d366b;
+  --heat: #eef4fc,#cde2fb,#86b6ef,#3987e5,#1c5cab,#0d366b;
+  --good: #006300;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.20);
+    --tooltip-bg: #242423; --accent-soft: #1d2a3b;
+    --s1: #3987e5; --s2: #d95926; --late: #e66767; --neutral: #5f5e5a;
+    --div: #5598e7,#9ec5f4,#6f6e69,#7a2f2f,#b84747,#e66767,#f2a3a2;
+    --ord: #184f95,#256abf,#3987e5,#6da7ec,#b7d3f6;
+    --heat: #1e2733,#1c3a63,#1c5cab,#3987e5,#86b6ef,#cde2fb;
+    --good: #0ca30c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.20);
+  --tooltip-bg: #242423; --accent-soft: #1d2a3b;
+  --s1: #3987e5; --s2: #d95926; --late: #e66767; --neutral: #5f5e5a;
+  --div: #5598e7,#9ec5f4,#6f6e69,#7a2f2f,#b84747,#e66767,#f2a3a2;
+  --ord: #184f95,#256abf,#3987e5,#6da7ec,#b7d3f6;
+  --heat: #1e2733,#1c3a63,#1c5cab,#3987e5,#86b6ef,#cde2fb;
+  --good: #0ca30c;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--page); color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; }
+header.top { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+h1 { font-size: 22px; line-height: 1.25; margin: 0 0 4px; letter-spacing: -0.01em; }
+.sub { color: var(--ink2); margin: 0; }
+.theme-btn {
+  background: var(--surface); color: var(--ink2); border: 1px solid var(--border-strong);
+  border-radius: 8px; padding: 6px 12px; font: inherit; cursor: pointer;
+}
+.theme-btn:hover { color: var(--ink); }
+nav.tabs { display: flex; gap: 4px; margin: 20px 0 16px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+nav.tabs button {
+  background: none; border: 0; border-bottom: 2px solid transparent; color: var(--ink2);
+  font: inherit; font-weight: 600; padding: 10px 14px; cursor: pointer; white-space: nowrap;
+}
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--s1); }
+nav.tabs button:focus-visible, .theme-btn:focus-visible, summary:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.tile-label { color: var(--ink2); font-size: 12.5px; }
+.tile-value { font-size: 26px; font-weight: 650; line-height: 1.2; margin-top: 4px; }
+.tile-note { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; min-width: 0; }
+.card.wide { grid-column: 1 / -1; }
+.card h2 { font-size: 15px; margin: 0; }
+.card .card-sub { color: var(--ink2); font-size: 13px; margin: 2px 0 12px; }
+.chart { position: relative; height: 280px; }
+.chart.tall { height: 520px; }
+.chart.short { height: 220px; }
+details { margin-top: 10px; }
+summary { color: var(--ink2); font-size: 12.5px; cursor: pointer; width: fit-content; }
+.tbl-wrap { overflow-x: auto; margin-top: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+th { color: var(--ink2); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.heat-wrap { overflow-x: auto; }
+table.heat { border-collapse: separate; border-spacing: 2px; font-size: 11.5px; }
+table.heat th, table.heat td { border: 0; padding: 5px 6px; text-align: center; }
+table.heat td.cell { min-width: 44px; border-radius: 3px; font-variant-numeric: tabular-nums; }
+table.heat th.row { text-align: left; color: var(--ink2); font-weight: 500; }
+table.heat td.size { color: var(--muted); text-align: right; }
+.legend-scale { display: flex; align-items: center; gap: 8px; color: var(--ink2); font-size: 12px; margin-top: 10px; }
+.legend-scale .bar { width: 160px; height: 10px; border-radius: 3px; }
+.insights { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--s1); border-radius: 12px; padding: 14px 18px; margin-top: 16px; }
+.insights h3 { font-size: 14px; margin: 0 0 6px; }
+.insights ul { margin: 0; padding-left: 18px; }
+.insights li { margin: 4px 0; }
+footer { color: var(--muted); font-size: 12px; margin-top: 28px; }
+.vs { font-size: 15px; color: var(--ink2); font-weight: 500; }
+@media (max-width: 900px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .chart.tall { height: 600px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Olist E-commerce: Customer Retention &amp; Delivery</h1>
+      <p class="sub" id="subtitle">Olist Brazilian e-commerce public dataset · values in Brazilian reais (R$)</p>
+    </div>
+    <button class="theme-btn" id="theme-btn" type="button">Dark mode</button>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Dashboard pages">
+    <button role="tab" id="tab-btn-overview" data-tab="overview" aria-controls="tab-overview">Overview</button>
+    <button role="tab" id="tab-btn-customers" data-tab="customers" aria-controls="tab-customers">Customers &amp; retention</button>
+    <button role="tab" id="tab-btn-delivery" data-tab="delivery" aria-controls="tab-delivery">Delivery &amp; reviews</button>
+    <button role="tab" id="tab-btn-sellers" data-tab="sellers" aria-controls="tab-sellers">Sellers &amp; categories</button>
+  </nav>
+
+  <!-- ============ OVERVIEW ============ -->
+  <section class="tab-panel" id="tab-overview" role="tabpanel" aria-labelledby="tab-btn-overview">
+    <div class="tiles" id="tiles-overview"></div>
+    <div class="grid">
+      <article class="card wide">
+        <h2>Monthly revenue</h2>
+        <p class="card-sub">Revenue more than doubled year over year, then flattened at about R$1.0-1.2M a month in 2018. Nov-2017 = Black Friday.</p>
+        <div class="chart"><canvas id="c-revenue" aria-label="Line chart of monthly revenue"></canvas></div>
+        <div id="tv-revenue"></div>
+      </article>
+      <article class="card">
+        <h2>Revenue by customer state (top 10)</h2>
+        <p class="card-sub">São Paulo alone brings over a third of revenue.</p>
+        <div class="chart"><canvas id="c-states" aria-label="Bar chart of revenue by state"></canvas></div>
+        <div id="tv-states"></div>
+      </article>
+      <article class="card">
+        <h2>Payment method (% of orders)</h2>
+        <p class="card-sub">Three in four orders are paid by credit card, often in instalments.</p>
+        <div class="chart"><canvas id="c-payment" aria-label="Bar chart of payment methods"></canvas></div>
+        <div id="tv-payment"></div>
+      </article>
+    </div>
+    <aside class="insights">
+      <h3>What this tells us</h3>
+      <ul>
+        <li>Growth came from <b>more orders, not bigger baskets</b>: average order value stayed between R$147 and R$174 every month.</li>
+        <li>Revenue <b>stopped growing in 2018</b>. Once acquisition flattens, retention is the next growth lever.</li>
+        <li>The market is concentrated in the South-East (SP, RJ, MG = about 62% of revenue).</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- ============ CUSTOMERS ============ -->
+  <section class="tab-panel" id="tab-customers" role="tabpanel" aria-labelledby="tab-btn-customers" hidden>
+    <div class="tiles" id="tiles-customers"></div>
+    <div class="grid">
+      <article class="card wide">
+        <h2>Monthly cohort retention</h2>
+        <p class="card-sub">% of each first-purchase cohort that bought again N months later. Hover a cell for details; blank = not observable yet.</p>
+        <div class="heat-wrap" id="heatmap"></div>
+        <div class="legend-scale"><span>0%</span><span class="bar" id="heat-legend"></span><span id="heat-max"></span></div>
+      </article>
+      <article class="card">
+        <h2>RFM segments: customers vs revenue</h2>
+        <p class="card-sub">Two one-purchase, high-spend segments hold 57% of revenue.</p>
+        <div class="chart"><canvas id="c-rfm" aria-label="Grouped bar chart of RFM segments"></canvas></div>
+        <div id="tv-rfm"></div>
+      </article>
+      <article class="card">
+        <h2>Average retention curve</h2>
+        <p class="card-sub">% of customers buying again N months after their first purchase (all cohorts, size-weighted).</p>
+        <div class="chart"><canvas id="c-curve" aria-label="Line chart of retention by month"></canvas></div>
+        <div id="tv-curve"></div>
+      </article>
+      <article class="card">
+        <h2>Time to second purchase</h2>
+        <p class="card-sub">Among customers who did come back, most did so within 3 months.</p>
+        <div class="chart"><canvas id="c-gap" aria-label="Bar chart of time to second purchase"></canvas></div>
+        <div id="tv-gap"></div>
+      </article>
+      <article class="card">
+        <h2>Customers by number of purchase days</h2>
+        <p class="card-sub">Nearly every customer bought on a single day.</p>
+        <div class="chart"><canvas id="c-freq" aria-label="Bar chart of purchase frequency"></canvas></div>
+        <div id="tv-freq"></div>
+      </article>
+    </div>
+    <aside class="insights">
+      <h3>What this tells us</h3>
+      <ul>
+        <li><b>97.8% of customers buy only once.</b> Fewer than 0.5% of a cohort return in the following month.</li>
+        <li>Repeat customers spend about <b>2x</b> as much over their lifetime, so +1 point of repeat rate ≈ <b>R$150k</b> in revenue.</li>
+        <li>Target <b>High-Value New</b> customers with a second-purchase offer within 90 days, and run a <b>win-back</b> campaign for <b>At Risk - High Value</b>.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- ============ DELIVERY ============ -->
+  <section class="tab-panel" id="tab-delivery" role="tabpanel" aria-labelledby="tab-btn-delivery" hidden>
+    <div class="tiles" id="tiles-delivery"></div>
+    <div class="grid">
+      <article class="card wide">
+        <h2>Average review score by delivery date vs. promised date</h2>
+        <p class="card-sub">Blue = early, gray = on the day, red = late. Reviews collapse once an order is 4+ days late.</p>
+        <div class="chart"><canvas id="c-delay" aria-label="Bar chart of review score by delivery delay"></canvas></div>
+        <div id="tv-delay"></div>
+      </article>
+      <article class="card">
+        <h2>Late deliveries by purchase month</h2>
+        <p class="card-sub">Spikes in Nov-2017 (Black Friday) and Feb-Mar 2018.</p>
+        <div class="chart short"><canvas id="c-late-month" aria-label="Line chart of late delivery rate by month"></canvas></div>
+        <div id="tv-late-month"></div>
+      </article>
+      <article class="card">
+        <h2>Average review score by purchase month</h2>
+        <p class="card-sub">The lowest-rated months are the late-delivery spikes (correlation -0.92).</p>
+        <div class="chart short"><canvas id="c-review-month" aria-label="Line chart of average review by month"></canvas></div>
+        <div id="tv-review-month"></div>
+      </article>
+      <article class="card">
+        <h2>Late-delivery rate by customer state</h2>
+        <p class="card-sub">Highlighted: more than 1.5x the national rate. States with 100+ delivered orders.</p>
+        <div class="chart tall"><canvas id="c-state-late" aria-label="Bar chart of late rate by state"></canvas></div>
+        <div id="tv-state-late"></div>
+      </article>
+      <article class="card">
+        <h2>Repeat rate by first-order review</h2>
+        <p class="card-sub">Customers whose first order earned 5 stars return most often. First orders Jan-2017 to Feb-2018.</p>
+        <div class="chart"><canvas id="c-first" aria-label="Bar chart of repeat rate by first review"></canvas></div>
+        <div id="tv-first"></div>
+      </article>
+    </div>
+    <aside class="insights">
+      <h3>What this tells us</h3>
+      <ul>
+        <li>Olist promises about <b>24 days</b> but delivers in about <b>12.6</b>. Still, <b>6.8%</b> of orders arrive late, and those average <b>2.27 stars vs 4.29</b>.</li>
+        <li>A late <b>first</b> order lowers the repeat rate from 2.93% to 1.99% (-32%, p = 0.001). Delivery protects ratings; on its own it does not create loyalty.</li>
+        <li>Fix the peaks (capacity planning before Black Friday), add <b>proactive delay alerts</b>, and serve the <b>North-East</b> with regional carriers.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- ============ SELLERS ============ -->
+  <section class="tab-panel" id="tab-sellers" role="tabpanel" aria-labelledby="tab-btn-sellers" hidden>
+    <div class="tiles" id="tiles-sellers"></div>
+    <div class="grid">
+      <article class="card">
+        <h2>Top 10 categories by product revenue</h2>
+        <p class="card-sub">Hover for orders, average review and late rate.</p>
+        <div class="chart"><canvas id="c-cats" aria-label="Bar chart of revenue by category"></canvas></div>
+        <div id="tv-cats"></div>
+      </article>
+      <article class="card">
+        <h2>Revenue share by seller decile</h2>
+        <p class="card-sub">Sellers ranked by revenue and split into 10 equal groups.</p>
+        <div class="chart"><canvas id="c-deciles" aria-label="Bar chart of revenue by seller decile"></canvas></div>
+        <div id="tv-deciles"></div>
+      </article>
+      <article class="card">
+        <h2>Lowest-rated categories (500+ orders)</h2>
+        <p class="card-sub">Office furniture stands out: 1 in 4 reviews is 1-2 stars.</p>
+        <div id="tbl-lowcats"></div>
+      </article>
+      <article class="card">
+        <h2>Sellers with the highest late rate (100+ orders)</h2>
+        <p class="card-sub">Candidates for an SLA review.</p>
+        <div id="tbl-sellers"></div>
+      </article>
+    </div>
+    <aside class="insights">
+      <h3>What this tells us</h3>
+      <ul>
+        <li>Revenue is highly concentrated: the <b>top 10% of sellers bring about two-thirds</b> of it. Keeping them happy is critical.</li>
+        <li>The <b>30% of sellers with the worst late rate cause 54% of late orders</b>. A seller scorecard with SLA targets would hit most delays.</li>
+        <li>Big categories like bed/bath/table and furniture are rated below average. Check product descriptions and packaging there.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <footer id="footer"></footer>
+</div>
+
+<script>
+const DATA = __DATA_JSON__;
+const R = (name) => DATA[name] || [];
+const root = document.documentElement;
+const css = (v) => getComputedStyle(root).getPropertyValue(v).trim();
+const list = (v) => css(v).split(',').map((s) => s.trim());
+
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const mlabel = (s) => `${MON[+s.slice(5, 7) - 1]} ${s.slice(0, 4)}`;
+const mindex = (s) => +s.slice(0, 4) * 12 + (+s.slice(5, 7));
+const nf = (d) => new Intl.NumberFormat('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const f = {
+  int: (v) => v == null ? '–' : nf(0).format(v),
+  brl: (v) => v == null ? '–' : 'R$' + nf(0).format(v),
+  brl2: (v) => v == null ? '–' : 'R$' + nf(2).format(v),
+  brlK: (v) => 'R$' + nf(0).format(v / 1e3) + 'k',
+  brlM: (v) => 'R$' + nf(2).format(v / 1e6) + 'M',
+  pct: (v, d = 1) => v == null ? '–' : nf(d).format(v) + '%',
+  dec: (v, d = 2) => v == null ? '–' : nf(d).format(v),
+  strip: (s) => String(s).replace(/^\d+\.\s*/, ''),
+};
+
+/* ---------- shared building blocks ---------- */
+function tiles(id, items) {
+  document.getElementById(id).innerHTML = items.map((t) => `
+    <div class="tile"><div class="tile-label">${t.label}</div>
+    <div class="tile-value">${t.value}</div>
+    ${t.note ? `<div class="tile-note">${t.note}</div>` : ''}</div>`).join('');
+}
+
+function table(id, cols, rows, open = false) {
+  const el = document.getElementById(id);
+  const head = cols.map((c) => `<th class="${c.num ? 'num' : ''}">${c.label}</th>`).join('');
+  const body = rows.map((r) => `<tr>${cols.map((c) =>
+    `<td class="${c.num ? 'num' : ''}">${c.fmt ? c.fmt(r[c.key], r) : r[c.key]}</td>`).join('')}</tr>`).join('');
+  const tbl = `<div class="tbl-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+  el.innerHTML = open ? tbl : `<details><summary>View as table</summary>${tbl}</details>`;
+}
+
+const crosshair = {
+  id: 'crosshair',
+  afterDatasetsDraw(chart) {
+    const active = chart.tooltip && chart.tooltip.getActiveElements();
+    if (!active || !active.length) return;
+    const x = active[0].element.x, { top, bottom } = chart.chartArea, ctx = chart.ctx;
+    ctx.save(); ctx.strokeStyle = css('--axis'); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke(); ctx.restore();
+  },
+};
+
+function options(o = {}) {
+  const horizontal = o.indexAxis === 'y';
+  const valueAxis = {
+    beginAtZero: o.min == null, min: o.min, max: o.max,
+    grid: { color: css('--grid'), drawTicks: false }, border: { display: false },
+    ticks: { color: css('--ink2'), padding: 8, maxTicksLimit: 6, callback: o.valueFmt || undefined },
+  };
+  const catAxis = {
+    grid: { display: false }, border: { color: css('--axis') },
+    ticks: { color: css('--ink2'), autoSkip: !horizontal, maxRotation: 0, autoSkipPadding: 12 },
+  };
+  return {
+    responsive: true, maintainAspectRatio: false, indexAxis: o.indexAxis || 'x',
+    interaction: o.line ? { mode: 'index', intersect: false } : { mode: 'nearest', intersect: true, axis: horizontal ? 'y' : 'x' },
+    plugins: {
+      legend: {
+        display: !!o.legend, position: 'top', align: 'start',
+        labels: { color: css('--ink2'), boxWidth: 12, boxHeight: 12, useBorderRadius: true, borderRadius: 2 },
+      },
+      tooltip: {
+        backgroundColor: css('--tooltip-bg'), titleColor: css('--ink'), bodyColor: css('--ink2'),
+        borderColor: css('--border-strong'), borderWidth: 1, padding: 10, cornerRadius: 6,
+        displayColors: !!o.legend, callbacks: o.tooltip || {},
+      },
+    },
+    scales: horizontal ? { x: valueAxis, y: catAxis } : { x: catAxis, y: valueAxis },
+    animation: { duration: 250 },
+  };
+}
+
+const bar = (extra = {}) => ({ borderRadius: 4, borderSkipped: 'start', categoryPercentage: 0.8, barPercentage: 0.88, ...extra });
+const line = (color, extra = {}) => ({
+  borderColor: color, backgroundColor: color, borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
+  pointBorderColor: css('--surface'), pointBorderWidth: 2, tension: 0, ...extra,
+});
+
+const charts = {};
+function chart(id, config) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), config);
+}
+
+/* ---------- OVERVIEW ---------- */
+function renderOverview() {
+  const k = R('headline_kpis')[0];
+  const yoy = R('yoy_jan_aug').find((r) => r.year == 2018) || {};
+  tiles('tiles-overview', [
+    { label: 'Revenue', value: f.brlM(k.total_revenue), note: 'item price + freight' },
+    { label: 'Orders', value: f.int(k.total_orders), note: 'excl. canceled / unavailable' },
+    { label: 'Customers', value: f.int(k.total_customers), note: 'unique people' },
+    { label: 'Average order value', value: f.brl2(k.avg_order_value), note: `${f.dec(k.avg_items_per_order)} items per order` },
+    { label: 'Average review', value: `${f.dec(k.avg_review_score)} / 5`, note: '1-5 stars' },
+    { label: 'Revenue growth, Jan-Aug', value: `+${f.pct(yoy.revenue_growth_pct, 0)}`, note: '2018 vs 2017' },
+  ]);
+
+  const m = R('monthly_trend');
+  chart('c-revenue', {
+    type: 'line',
+    data: { labels: m.map((r) => mlabel(r.purchase_month)),
+            datasets: [{ label: 'Revenue', data: m.map((r) => r.revenue), ...line(css('--s1')) }] },
+    options: options({
+      line: true, valueFmt: (v) => f.brlK(v),
+      tooltip: {
+        label: (c) => `Revenue: ${f.brl(c.parsed.y)}`,
+        afterLabel: (c) => { const r = m[c.dataIndex]; return [`Orders: ${f.int(r.orders)}`, `Avg order: ${f.brl2(r.avg_order_value)}`, `vs prior month: ${r.revenue_mom_pct == null ? '–' : (r.revenue_mom_pct > 0 ? '+' : '') + f.pct(r.revenue_mom_pct)}`]; },
+      },
+    }),
+    plugins: [crosshair],
+  });
+  table('tv-revenue', [
+    { key: 'purchase_month', label: 'Month' }, { key: 'orders', label: 'Orders', num: true, fmt: f.int },
+    { key: 'revenue', label: 'Revenue', num: true, fmt: f.brl }, { key: 'avg_order_value', label: 'Avg order', num: true, fmt: f.brl2 },
+    { key: 'revenue_mom_pct', label: 'MoM %', num: true, fmt: (v) => f.pct(v) },
+  ], m);
+
+  const st = R('revenue_by_state').slice(0, 10);
+  chart('c-states', {
+    type: 'bar',
+    data: { labels: st.map((r) => r.customer_state),
+            datasets: [{ label: 'Revenue', data: st.map((r) => r.revenue), backgroundColor: css('--s1'), ...bar() }] },
+    options: options({
+      indexAxis: 'y', valueFmt: (v) => f.brlK(v),
+      tooltip: { label: (c) => { const r = st[c.dataIndex]; return [`Revenue: ${f.brl(r.revenue)} (${f.pct(r.revenue_share_pct)})`, `Orders: ${f.int(r.orders)}`, `Avg freight: ${f.brl2(r.avg_freight)}`]; } },
+    }),
+  });
+  table('tv-states', [
+    { key: 'customer_state', label: 'State' }, { key: 'orders', label: 'Orders', num: true, fmt: f.int },
+    { key: 'revenue', label: 'Revenue', num: true, fmt: f.brl }, { key: 'revenue_share_pct', label: 'Share', num: true, fmt: (v) => f.pct(v) },
+    { key: 'avg_freight', label: 'Avg freight', num: true, fmt: f.brl2 },
+  ], st);
+
+  const p = R('payment_mix');
+  chart('c-payment', {
+    type: 'bar',
+    data: { labels: p.map((r) => r.payment_type.replace('_', ' ')),
+            datasets: [{ label: '% of orders', data: p.map((r) => r.pct_of_orders), backgroundColor: css('--s1'), ...bar() }] },
+    options: options({
+      indexAxis: 'y', valueFmt: (v) => f.pct(v, 0),
+      tooltip: { label: (c) => { const r = p[c.dataIndex]; return [`${f.pct(r.pct_of_orders)} of orders (${f.int(r.orders)})`, `Avg order: ${f.brl2(r.avg_order_value)}`, `Avg instalments: ${f.dec(r.avg_installments, 1)}`]; } },
+    }),
+  });
+  table('tv-payment', [
+    { key: 'payment_type', label: 'Method' }, { key: 'orders', label: 'Orders', num: true, fmt: f.int },
+    { key: 'pct_of_orders', label: '% of orders', num: true, fmt: (v) => f.pct(v) },
+    { key: 'avg_order_value', label: 'Avg order', num: true, fmt: f.brl2 },
+    { key: 'avg_installments', label: 'Avg instalments', num: true, fmt: (v) => f.dec(v, 1) },
+  ], p);
+}
+
+/* ---------- CUSTOMERS ---------- */
+function renderCustomers() {
+  const rr = R('repeat_rate')[0];
+  const curve = R('retention_curve');
+  const gaps = R('days_to_second_purchase');
+  const within90 = gaps.filter((g) => /^[12]\./.test(g.time_to_2nd_purchase)).reduce((s, g) => s + g.pct_of_repeaters, 0);
+  tiles('tiles-customers', [
+    { label: 'One-time customers', value: f.pct(100 - rr.repeat_rate_pct), note: `${f.int(rr.customers - rr.repeat_customers)} of ${f.int(rr.customers)}` },
+    { label: 'Repeat rate', value: f.pct(rr.repeat_rate_pct, 2), note: 'bought on 2+ different days' },
+    { label: 'Back in month 1', value: f.pct(curve[0].retention_pct, 2), note: 'of a cohort, size-weighted' },
+    { label: 'Lifetime spend, repeat', value: f.brl(rr.avg_spend_repeat), note: `<span class="vs">vs ${f.brl(rr.avg_spend_one_time)} one-time</span>` },
+    { label: '2nd purchase within 90 days', value: f.pct(within90, 0), note: 'of customers who came back' },
+  ]);
+
+  renderHeatmap();
+
+  const seg = R('rfm_segment_summary');
+  chart('c-rfm', {
+    type: 'bar',
+    data: { labels: seg.map((r) => r.segment), datasets: [
+      { label: '% of customers', data: seg.map((r) => r.pct_customers), backgroundColor: css('--s1'), ...bar() },
+      { label: '% of revenue', data: seg.map((r) => r.pct_revenue), backgroundColor: css('--s2'), ...bar() },
+    ] },
+    options: options({
+      indexAxis: 'y', legend: true, valueFmt: (v) => f.pct(v, 0),
+      tooltip: {
+        label: (c) => `${c.dataset.label}: ${f.pct(c.parsed.x)}`,
+        afterBody: (items) => { const r = seg[items[0].dataIndex]; return [`${f.int(r.customers)} customers · avg spend ${f.brl(r.avg_spend)}`, `last purchase ~${f.int(r.avg_recency_days)} days ago`]; },
+      },
+    }),
+  });
+  table('tv-rfm', [
+    { key: 'segment', label: 'Segment' }, { key: 'customers', label: 'Customers', num: true, fmt: f.int },
+    { key: 'pct_customers', label: '% cust.', num: true, fmt: (v) => f.pct(v) }, { key: 'pct_revenue', label: '% rev.', num: true, fmt: (v) => f.pct(v) },
+    { key: 'avg_spend', label: 'Avg spend', num: true, fmt: f.brl2 }, { key: 'avg_recency_days', label: 'Recency (days)', num: true, fmt: f.int },
+  ], seg);
+
+  chart('c-curve', {
+    type: 'line',
+    data: { labels: curve.map((r) => `M${r.month_number}`),
+            datasets: [{ label: 'Retention', data: curve.map((r) => r.retention_pct), ...line(css('--s1')) }] },
+    options: options({
+      line: true, valueFmt: (v) => f.pct(v, 1),
+      tooltip: {
+        title: (items) => `Month ${curve[items[0].dataIndex].month_number} after first purchase`,
+        label: (c) => { const r = curve[c.dataIndex]; return `${f.pct(r.retention_pct, 2)} (${f.int(r.active_customers)} of ${f.int(r.customers_observed)})`; },
+      },
+    }),
+    plugins: [crosshair],
+  });
+  table('tv-curve', [
+    { key: 'month_number', label: 'Month' }, { key: 'customers_observed', label: 'Customers observed', num: true, fmt: f.int },
+    { key: 'active_customers', label: 'Bought again', num: true, fmt: f.int }, { key: 'retention_pct', label: 'Retention', num: true, fmt: (v) => f.pct(v, 2) },
+  ], curve);
+
+  chart('c-gap', {
+    type: 'bar',
+    data: { labels: gaps.map((r) => f.strip(r.time_to_2nd_purchase)),
+            datasets: [{ label: '% of repeaters', data: gaps.map((r) => r.pct_of_repeaters), backgroundColor: css('--s1'), ...bar() }] },
+    options: options({ valueFmt: (v) => f.pct(v, 0),
+      tooltip: { label: (c) => `${f.pct(c.parsed.y)} of repeat customers (${f.int(gaps[c.dataIndex].customers)})` } }),
+  });
+  table('tv-gap', [
+    { key: 'time_to_2nd_purchase', label: 'Time to 2nd purchase', fmt: f.strip },
+    { key: 'customers', label: 'Customers', num: true, fmt: f.int }, { key: 'pct_of_repeaters', label: '% of repeaters', num: true, fmt: (v) => f.pct(v) },
+  ], gaps);
+
+  const fr = R('purchase_frequency');
+  chart('c-freq', {
+    type: 'bar',
+    data: { labels: fr.map((r) => `${r.purchase_days} day${r.purchase_days === '1' ? '' : 's'}`),
+            datasets: [{ label: '% of customers', data: fr.map((r) => r.pct_of_customers), backgroundColor: css('--s1'), ...bar() }] },
+    options: options({ valueFmt: (v) => f.pct(v, 0),
+      tooltip: { label: (c) => { const r = fr[c.dataIndex]; return [`${f.pct(r.pct_of_customers, 2)} of customers (${f.int(r.customers)})`, `${f.pct(r.pct_of_revenue, 1)} of revenue`]; } } }),
+  });
+  table('tv-freq', [
+    { key: 'purchase_days', label: 'Purchase days' }, { key: 'customers', label: 'Customers', num: true, fmt: f.int },
+    { key: 'pct_of_customers', label: '% customers', num: true, fmt: (v) => f.pct(v, 2) },
+    { key: 'revenue', label: 'Revenue', num: true, fmt: f.brl }, { key: 'pct_of_revenue', label: '% revenue', num: true, fmt: (v) => f.pct(v, 2) },
+  ], fr);
+}
+
+function hexRgb(h) { return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); }
+function ramp(stops, t) {
+  t = Math.max(0, Math.min(1, t));
+  const pos = (stops.length - 1) * t, i = Math.min(Math.floor(pos), stops.length - 2), w = pos - i;
+  const a = hexRgb(stops[i]), b = hexRgb(stops[i + 1]);
+  return a.map((c, k) => Math.round(c + (b[k] - c) * w));
+}
+
+function renderHeatmap() {
+  const rows = R('cohort_retention');
+  const lastObservable = mindex('2018-08');
+  const cohorts = [...new Set(rows.map((r) => r.cohort_month))].sort()
+    .filter((c) => mindex(c) + 1 <= lastObservable);
+  const lookup = new Map(rows.map((r) => [`${r.cohort_month}|${r.month_number}`, r]));
+  const sizes = new Map(rows.filter((r) => r.month_number === 0).map((r) => [r.cohort_month, r.cohort_customers]));
+  const values = [];
+  cohorts.forEach((c) => { for (let m = 1; m <= 12; m++) if (mindex(c) + m <= lastObservable) values.push(lookup.get(`${c}|${m}`)?.retention_pct ?? 0); });
+  values.sort((a, b) => a - b);
+  const vmax = values[Math.floor(values.length * 0.98)] || 1;
+  const stops = list('--heat');
+
+  let html = '<table class="heat"><thead><tr><th class="row">Cohort</th><th class="num">Customers</th>';
+  for (let m = 1; m <= 12; m++) html += `<th>M${m}</th>`;
+  html += '</tr></thead><tbody>';
+  cohorts.forEach((c) => {
+    const size = sizes.get(c);
+    html += `<tr><th class="row" scope="row">${mlabel(c)}</th><td class="size">${f.int(size)}</td>`;
+    for (let m = 1; m <= 12; m++) {
+      if (mindex(c) + m > lastObservable) { html += '<td></td>'; continue; }
+      const r = lookup.get(`${c}|${m}`);
+      const v = r ? r.retention_pct : 0, n = r ? r.active_customers : 0;
+      const t = v / vmax, rgb = ramp(stops, t);
+      const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+      html += `<td class="cell" style="background:rgb(${rgb});color:${lum < 0.5 ? '#ffffff' : '#0b0b0b'}"
+        title="${mlabel(c)} cohort, month ${m}: ${f.pct(v, 2)} (${f.int(n)} of ${f.int(size)} customers)">${f.dec(v, 2)}</td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('heatmap').innerHTML = html;
+  document.getElementById('heat-legend').style.background = `linear-gradient(90deg, ${stops.join(',')})`;
+  document.getElementById('heat-max').textContent = `${f.pct(vmax, 2)}+`;
+}
+
+/* ---------- DELIVERY ---------- */
+function renderDelivery() {
+  const d = R('delivery_overview')[0];
+  const st = R('review_by_delivery_status');
+  const late = st.find((r) => r.delivery_status === 'Late'), ok = st.find((r) => r.delivery_status !== 'Late');
+  const fl = R('first_order_late_vs_repeat');
+  const flLate = fl.find((r) => r.first_order_experience.includes('late')), flOk = fl.find((r) => r.first_order_experience.includes('on time'));
+  tiles('tiles-delivery', [
+    { label: 'Late deliveries', value: f.pct(d.late_pct), note: `${f.int(d.late_orders)} of ${f.int(d.delivered_orders)} delivered` },
+    { label: 'Avg delivery time', value: `${f.dec(d.avg_delivery_days, 1)} days`, note: `promised: ${f.dec(d.avg_promised_days, 1)} days` },
+    { label: 'Avg review, late orders', value: f.dec(late.avg_review_score), note: `<span class="vs">vs ${f.dec(ok.avg_review_score)} on time</span>` },
+    { label: '1-2 star reviews, late', value: f.pct(late.pct_1_2_star, 0), note: `vs ${f.pct(ok.pct_1_2_star, 0)} on time` },
+    { label: 'Repeat rate after a late 1st order', value: f.pct(flLate.repeat_rate_pct, 2), note: `vs ${f.pct(flOk.repeat_rate_pct, 2)} when on time` },
+  ]);
+
+  const b = R('review_by_delay_bucket');
+  const div = list('--div');
+  chart('c-delay', {
+    type: 'bar',
+    data: { labels: b.map((r) => f.strip(r.delay_bucket)),
+            datasets: [{ label: 'Avg review', data: b.map((r) => r.avg_review_score), backgroundColor: div, ...bar() }] },
+    options: options({ min: 0, max: 5, valueFmt: (v) => v,
+      tooltip: { label: (c) => { const r = b[c.dataIndex]; return [`Avg review: ${f.dec(r.avg_review_score)}`, `1-2 star reviews: ${f.pct(r.pct_1_2_star)}`, `Orders: ${f.int(r.orders)}`]; } } }),
+  });
+  table('tv-delay', [
+    { key: 'delay_bucket', label: 'Delivered', fmt: f.strip }, { key: 'orders', label: 'Orders', num: true, fmt: f.int },
+    { key: 'avg_review_score', label: 'Avg review', num: true, fmt: (v) => f.dec(v) }, { key: 'pct_1_2_star', label: '1-2 stars', num: true, fmt: (v) => f.pct(v) },
+  ], b);
+
+  const m = R('late_rate_by_month');
+  chart('c-late-month', {
+    type: 'line',
+    data: { labels: m.map((r) => mlabel(r.purchase_month)), datasets: [{ label: 'Late %', data: m.map((r) => r.late_pct), ...line(css('--s1')) }] },
+    options: options({ line: true, valueFmt: (v) => f.pct(v, 0),
+      tooltip: { label: (c) => { const r = m[c.dataIndex]; return [`Late: ${f.pct(r.late_pct)}`, `Avg delivery: ${f.dec(r.avg_delivery_days, 1)} days`, `Delivered orders: ${f.int(r.delivered_orders)}`]; } } }),
+    plugins: [crosshair],
+  });
+  chart('c-review-month', {
+    type: 'line',
+    data: { labels: m.map((r) => mlabel(r.purchase_month)), datasets: [{ label: 'Avg review', data: m.map((r) => r.avg_review_score), ...line(css('--s1')) }] },
+    options: options({ line: true, min: 3.6, max: 4.5, valueFmt: (v) => f.dec(v, 1),
+      tooltip: { label: (c) => `Avg review: ${f.dec(c.parsed.y)}` } }),
+    plugins: [crosshair],
+  });
+  const monthCols = [
+    { key: 'purchase_month', label: 'Month' }, { key: 'delivered_orders', label: 'Delivered', num: true, fmt: f.int },
+    { key: 'late_pct', label: 'Late %', num: true, fmt: (v) => f.pct(v) }, { key: 'avg_delivery_days', label: 'Avg days', num: true, fmt: (v) => f.dec(v, 1) },
+    { key: 'avg_review_score', label: 'Avg review', num: true, fmt: (v) => f.dec(v) },
+  ];
+  table('tv-late-month', monthCols, m);
+  table('tv-review-month', monthCols, m);
+
+  const s = R('delivery_by_state');
+  const national = d.late_pct;
+  chart('c-state-late', {
+    type: 'bar',
+    data: { labels: s.map((r) => r.customer_state),
+            datasets: [{ label: 'Late %', data: s.map((r) => r.late_pct),
+                         backgroundColor: s.map((r) => r.late_pct > national * 1.5 ? css('--s1') : css('--neutral')), ...bar() }] },
+    options: options({ indexAxis: 'y', valueFmt: (v) => f.pct(v, 0),
+      tooltip: { label: (c) => { const r = s[c.dataIndex]; return [`Late: ${f.pct(r.late_pct)} (national ${f.pct(national)})`, `Avg delivery: ${f.dec(r.avg_delivery_days, 1)} days`, `Avg review: ${f.dec(r.avg_review_score)}`, `Delivered orders: ${f.int(r.delivered_orders)}`]; } } }),
+  });
+  table('tv-state-late', [
+    { key: 'customer_state', label: 'State' }, { key: 'delivered_orders', label: 'Delivered', num: true, fmt: f.int },
+    { key: 'late_pct', label: 'Late %', num: true, fmt: (v) => f.pct(v) }, { key: 'avg_delivery_days', label: 'Avg days', num: true, fmt: (v) => f.dec(v, 1) },
+    { key: 'avg_freight', label: 'Avg freight', num: true, fmt: f.brl2 }, { key: 'avg_review_score', label: 'Avg review', num: true, fmt: (v) => f.dec(v) },
+  ], s);
+
+  const fr = R('first_review_vs_repeat');
+  chart('c-first', {
+    type: 'bar',
+    data: { labels: fr.map((r) => `${r.first_order_review} star${r.first_order_review > 1 ? 's' : ''}`),
+            datasets: [{ label: 'Repeat rate', data: fr.map((r) => r.repeat_rate_pct), backgroundColor: list('--ord'), ...bar() }] },
+    options: options({ valueFmt: (v) => f.pct(v, 1),
+      tooltip: { label: (c) => { const r = fr[c.dataIndex]; return [`Repeat rate: ${f.pct(r.repeat_rate_pct, 2)}`, `${f.int(r.came_back)} of ${f.int(r.customers)} came back`]; } } }),
+  });
+  table('tv-first', [
+    { key: 'first_order_review', label: 'First review' }, { key: 'customers', label: 'Customers', num: true, fmt: f.int },
+    { key: 'came_back', label: 'Came back', num: true, fmt: f.int }, { key: 'repeat_rate_pct', label: 'Repeat rate', num: true, fmt: (v) => f.pct(v, 2) },
+  ], fr);
+}
+
+/* ---------- SELLERS ---------- */
+function renderSellers() {
+  const conc = R('seller_revenue_concentration');
+  const lateConc = R('late_orders_concentration');
+  const cats = R('top_categories').slice(0, 10);
+  const sellers = conc.reduce((s, r) => s + r.sellers, 0);
+  tiles('tiles-sellers', [
+    { label: 'Active sellers', value: f.int(sellers), note: 'with at least one valid order' },
+    { label: 'Revenue from top 10% sellers', value: f.pct(conc[0].pct_revenue), note: `top 20%: ${f.pct(conc[1].cumulative_pct_revenue)}` },
+    { label: 'Late orders from worst 30%', value: f.pct(lateConc.slice(0, 3).reduce((s, r) => s + r.pct_of_all_late, 0), 0), note: 'sellers with 20+ orders, by late rate' },
+    { label: 'Top category', value: cats[0].category.replace(/_/g, ' '), note: `${f.pct(cats[0].pct_revenue)} of product revenue` },
+  ]);
+
+  chart('c-cats', {
+    type: 'bar',
+    data: { labels: cats.map((r) => r.category.replace(/_/g, ' ')),
+            datasets: [{ label: 'Revenue', data: cats.map((r) => r.product_revenue), backgroundColor: css('--s1'), ...bar() }] },
+    options: options({ indexAxis: 'y', valueFmt: (v) => f.brlK(v),
+      tooltip: { label: (c) => { const r = cats[c.dataIndex]; return [`Revenue: ${f.brl(r.product_revenue)} (${f.pct(r.pct_revenue)})`, `Orders: ${f.int(r.orders)}`, `Avg review: ${f.dec(r.avg_review_score)} · late ${f.pct(r.late_pct)}`]; } } }),
+  });
+  table('tv-cats', [
+    { key: 'category', label: 'Category', fmt: (v) => v.replace(/_/g, ' ') }, { key: 'orders', label: 'Orders', num: true, fmt: f.int },
+    { key: 'product_revenue', label: 'Revenue', num: true, fmt: f.brl }, { key: 'avg_review_score', label: 'Avg review', num: true, fmt: (v) => f.dec(v) },
+    { key: 'late_pct', label: 'Late %', num: true, fmt: (v) => f.pct(v) },
+  ], cats);
+
+  chart('c-deciles', {
+    type: 'bar',
+    data: { labels: conc.map((r) => r.seller_decile === 1 ? 'Top 10%' : `D${r.seller_decile}`),
+            datasets: [{ label: '% of revenue', data: conc.map((r) => r.pct_revenue), backgroundColor: css('--s1'), ...bar() }] },
+    options: options({ valueFmt: (v) => f.pct(v, 0),
+      tooltip: { label: (c) => { const r = conc[c.dataIndex]; return [`${f.pct(r.pct_revenue)} of revenue (${f.brl(r.revenue)})`, `Cumulative: ${f.pct(r.cumulative_pct_revenue)}`, `${f.int(r.sellers)} sellers`]; } } }),
+  });
+  table('tv-deciles', [
+    { key: 'seller_decile', label: 'Decile' }, { key: 'sellers', label: 'Sellers', num: true, fmt: f.int },
+    { key: 'revenue', label: 'Revenue', num: true, fmt: f.brl }, { key: 'pct_revenue', label: '% revenue', num: true, fmt: (v) => f.pct(v) },
+    { key: 'cumulative_pct_revenue', label: 'Cumulative', num: true, fmt: (v) => f.pct(v) },
+  ], conc);
+
+  table('tbl-lowcats', [
+    { key: 'category', label: 'Category', fmt: (v) => v.replace(/_/g, ' ') }, { key: 'orders', label: 'Orders', num: true, fmt: f.int },
+    { key: 'avg_review_score', label: 'Avg review', num: true, fmt: (v) => f.dec(v) }, { key: 'pct_1_2_star', label: '1-2 stars', num: true, fmt: (v) => f.pct(v) },
+    { key: 'late_pct', label: 'Late %', num: true, fmt: (v) => f.pct(v) },
+  ], R('lowest_rated_categories'), true);
+
+  table('tbl-sellers', [
+    { key: 'seller_id', label: 'Seller', fmt: (v) => `${v.slice(0, 8)}…` }, { key: 'seller_state', label: 'State' },
+    { key: 'delivered_orders', label: 'Orders', num: true, fmt: f.int }, { key: 'late_pct', label: 'Late %', num: true, fmt: (v) => f.pct(v) },
+    { key: 'avg_delivery_days', label: 'Avg days', num: true, fmt: (v) => f.dec(v, 1) }, { key: 'avg_review_score', label: 'Avg review', num: true, fmt: (v) => f.dec(v) },
+  ], R('seller_scorecard').slice(0, 10), true);
+}
+
+/* ---------- tabs, theme, boot ---------- */
+const RENDER = { overview: renderOverview, customers: renderCustomers, delivery: renderDelivery, sellers: renderSellers };
+const rendered = new Set();
+let current = 'overview';
+
+function store(key, value) { try { value == null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch (e) { /* storage unavailable */ } }
+function recall(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+
+function show(tab) {
+  if (!RENDER[tab]) tab = 'overview';
+  current = tab;
+  document.querySelectorAll('nav.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+  document.querySelectorAll('.tab-panel').forEach((p) => { p.hidden = p.id !== `tab-${tab}`; });
+  if (!rendered.has(tab)) { RENDER[tab](); rendered.add(tab); }
+  store('olist-dash-tab', tab);
+}
+
+function rerender() {
+  Object.keys(charts).forEach((id) => { charts[id].destroy(); delete charts[id]; });
+  rendered.clear();
+  show(current);
+}
+
+function isDark() {
+  const t = root.dataset.theme;
+  return t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function syncThemeButton() { document.getElementById('theme-btn').textContent = isDark() ? 'Light mode' : 'Dark mode'; }
+
+document.querySelectorAll('nav.tabs button').forEach((b) => b.addEventListener('click', () => show(b.dataset.tab)));
+document.getElementById('theme-btn').addEventListener('click', () => {
+  root.dataset.theme = isDark() ? 'light' : 'dark';
+  store('olist-dash-theme', root.dataset.theme);
+  syncThemeButton(); rerender();
+});
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!root.dataset.theme) { syncThemeButton(); rerender(); } });
+
+(function boot() {
+  const savedTheme = recall('olist-dash-theme');
+  if (savedTheme === 'light' || savedTheme === 'dark') root.dataset.theme = savedTheme;
+  syncThemeButton();
+  const k = R('headline_kpis')[0];
+  document.getElementById('subtitle').textContent =
+    `Olist Brazilian e-commerce public dataset · ${f.int(k.total_orders)} valid orders, ${k.first_order_date} to ${k.last_order_date} · monthly trends Jan-2017 to Aug-2018 · values in R$`;
+  document.getElementById('footer').textContent =
+    `Built from the SQL results in outputs/sql_results (generated ${DATA._generated}). Every chart has a "View as table" option.`;
+  if (typeof Chart === 'undefined') {
+    document.querySelectorAll('.chart').forEach((c) => { c.innerHTML = '<p class="card-sub">Charts need an internet connection to load Chart.js. The tables below still work.</p>'; c.style.height = 'auto'; });
+    window.Chart = function () { return { destroy() {} }; };
+  } else {
+    Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+    Chart.defaults.font.size = 12;
+  }
+  show(recall('olist-dash-tab') || 'overview');
+})();
+</script>
+</body>
+</html>

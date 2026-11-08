@@ -1,0 +1,14 @@
+check_name,affected
+customers: person with >1 customer_id (repeat buyers),2997
+reviews: duplicate review_id,814
+reviews: orders with more than one review,547
+orders: no review at all,768
+orders: no items,775
+orders: no payment,1
+order_items: product not in products table,0
+products: missing category,610
+products: category without English translation,2
+orders: delivered before purchase (impossible),0
+orders: handed to carrier before purchase (impossible),166
+payments: zero payment value,9
+geolocation: exact duplicate rows,261831

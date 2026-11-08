@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Olist Retention Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10); --border-strong: rgba(11,11,11,0.18);
+  --tooltip-bg: #ffffff; --accent-soft: #eef4fc;
+  --s1: #2a78d6; --s2: #eb6834; --late: #e34948; --neutral: #c3c2b7;
+  --div: #1c5cab,#6da7ec,#b5b4ad,#f2a3a2,#e8706f,#d43d3c,#a82a2a;
+  --ord: #86b6ef,#5598e7,#2a78d6,#1c5cab,#0d366b;
+  --heat: #eef4fc,#cde2fb,#86b6ef,#3987e5,#1c5cab,#0d366b;
+  --good: #006300;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.20);
+    --tooltip-bg: #242423; --accent-soft: #1d2a3b;
+    --s1: #3987e5; --s2: #d95926; --late: #e66767; --neutral: #5f5e5a;
+    --div: #5598e7,#9ec5f4,#6f6e69,#7a2f2f,#b84747,#e66767,#f2a3a2;
+    --ord: #184f95,#256abf,#3987e5,#6da7ec,#b7d3f6;
+    --heat: #1e2733,#1c3a63,#1c5cab,#3987e5,#86b6ef,#cde2fb;
+    --good: #0ca30c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.20);
+  --tooltip-bg: #242423; --accent-soft: #1d2a3b;
+  --s1: #3987e5; --s2: #d95926; --late: #e66767; --neutral: #5f5e5a;
+  --div: #5598e7,#9ec5f4,#6f6e69,#7a2f2f,#b84747,#e66767,#f2a3a2;
+  --ord: #184f95,#256abf,#3987e5,#6da7ec,#b7d3f6;
+  --heat: #1e2733,#1c3a63,#1c5cab,#3987e5,#86b6ef,#cde2fb;
+  --good: #0ca30c;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--page); color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; }
+header.top { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+h1 { font-size: 22px; line-height: 1.25; margin: 0 0 4px; letter-spacing: -0.01em; }
+.sub { color: var(--ink2); margin: 0; }
+.theme-btn {
+  background: var(--surface); color: var(--ink2); border: 1px solid var(--border-strong);
+  border-radius: 8px; padding: 6px 12px; font: inherit; cursor: pointer;
+}
+.theme-btn:hover { color: var(--ink); }
+nav.tabs { display: flex; gap: 4px; margin: 20px 0 16px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+nav.tabs button {
+  background: none; border: 0; border-bottom: 2px solid transparent; color: var(--ink2);
+  font: inherit; font-weight: 600; padding: 10px 14px; cursor: pointer; white-space: nowrap;
+}
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--s1); }
+nav.tabs button:focus-visible, .theme-btn:focus-visible, summary:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.tile-label { color: var(--ink2); font-size: 12.5px; }
+.tile-value { font-size: 26px; font-weight: 650; line-height: 1.2; margin-top: 4px; }
+.tile-note { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; min-width: 0; }
+.card.wide { grid-column: 1 / -1; }
+.card h2 { font-size: 15px; margin: 0; }
+.card .card-sub { color: var(--ink2); font-size: 13px; margin: 2px 0 12px; }
+.chart { position: relative; height: 280px; }
+.chart.tall { height: 520px; }
+.chart.short { height: 220px; }
+details { margin-top: 10px; }
+summary { color: var(--ink2); font-size: 12.5px; cursor: pointer; width: fit-content; }
+.tbl-wrap { overflow-x: auto; margin-top: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+th { color: var(--ink2); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.heat-wrap { overflow-x: auto; }
+table.heat { border-collapse: separate; border-spacing: 2px; font-size: 11.5px; }
+table.heat th, table.heat td { border: 0; padding: 5px 6px; text-align: center; }
+table.heat td.cell { min-width: 44px; border-radius: 3px; font-variant-numeric: tabular-nums; }
+table.heat th.row { text-align: left; color: var(--ink2); font-weight: 500; }
+table.heat td.size { color: var(--muted); text-align: right; }
+.legend-scale { display: flex; align-items: center; gap: 8px; color: var(--ink2); font-size: 12px; margin-top: 10px; }
+.legend-scale .bar { width: 160px; height: 10px; border-radius: 3px; }
+.insights { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--s1); border-radius: 12px; padding: 14px 18px; margin-top: 16px; }
+.insights h3 { font-size: 14px; margin: 0 0 6px; }
+.insights ul { margin: 0; padding-left: 18px; }
+.insights li { margin: 4px 0; }
+footer { color: var(--muted); font-size: 12px; margin-top: 28px; }
+.vs { font-size: 15px; color: var(--ink2); font-weight: 500; }
+@media (max-width: 900px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .chart.tall { height: 600px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Olist E-commerce: Customer Retention &amp; Delivery</h1>
+      <p class="sub" id="subtitle">Olist Brazilian e-commerce public dataset · values in Brazilian reais (R$)</p>
+    </div>
+    <button class="theme-btn" id="theme-btn" type="button">Dark mode</button>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Dashboard pages">
+    <button role="tab" id="tab-btn-overview" data-tab="overview" aria-controls="tab-overview">Overview</button>
+    <button role="tab" id="tab-btn-customers" data-tab="customers" aria-controls="tab-customers">Customers &amp; retention</button>
+    <button role="tab" id="tab-btn-delivery" data-tab="delivery" aria-controls="tab-delivery">Delivery &amp; reviews</button>
+    <button role="tab" id="tab-btn-sellers" data-tab="sellers" aria-controls="tab-sellers">Sellers &amp; categories</button>
+  </nav>
+
+  <!-- ============ OVERVIEW ============ -->
+  <section class="tab-panel" id="tab-overview" role="tabpanel" aria-labelledby="tab-btn-overview">
+    <div class="tiles" id="tiles-overview"></div>
+    <div class="grid">
+      <article class="card wide">
+        <h2>Monthly revenue</h2>
+        <p class="card-sub">Revenue more than doubled year over year, then flattened at about R$1.0-1.2M a month in 2018. Nov-2017 = Black Friday.</p>
+        <div class="chart"><canvas id="c-revenue" aria-label="Line chart of monthly revenue"></canvas></div>
+        <div id="tv-revenue"></div>
+      </article>
+      <article class="card">
+        <h2>Revenue by customer state (top 10)</h2>
+        <p class="card-sub">São Paulo alone brings over a third of revenue.</p>
+        <div class="chart"><canvas id="c-states" aria-label="Bar chart of revenue by state"></canvas></div>
+        <div id="tv-states"></div>
+      </article>
+      <article class="card">
+        <h2>Payment method (% of orders)</h2>
+        <p class="card-sub">Three in four orders are paid by credit card, often in instalments.</p>
+        <div class="chart"><canvas id="c-payment" aria-label="Bar chart of payment methods"></canvas></div>
+        <div id="tv-payment"></div>
+      </article>
+    </div>
+    <aside class="insights">
+      <h3>What this tells us</h3>
+      <ul>
+        <li>Growth came from <b>more orders, not bigger baskets</b>: average order value stayed between R$147 and R$174 every month.</li>
+        <li>Revenue <b>stopped growing in 2018</b>. Once acquisition flattens, retention is the next growth lever.</li>
+        <li>The market is concentrated in the South-East (SP, RJ, MG = about 62% of revenue).</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- ============ CUSTOMERS ============ -->
+  <section class="tab-panel" id="tab-customers" role="tabpanel" aria-labelledby="tab-btn-customers" hidden>
+    <div class="tiles" id="tiles-customers"></div>
+    <div class="grid">
+      <article class="card wide">
+        <h2>Monthly cohort retention</h2>
+        <p class="card-sub">% of each first-purchase cohort that bought again N months later. Hover a cell for details; blank = not observable yet.</p>
+        <div class="heat-wrap" id="heatmap"></div>
+        <div class="legend-scale"><span>0%</span><span class="bar" id="heat-legend"></span><span id="heat-max"></span></div>
+      </article>
+      <article class="card">
+        <h2>RFM segments: customers vs revenue</h2>
+        <p class="card-sub">Two one-purchase, high-spend segments hold 57% of revenue.</p>
+        <div class="chart"><canvas id="c-rfm" aria-label="Grouped bar chart of RFM segments"></canvas></div>
+        <div id="tv-rfm"></div>
+      </article>
+      <article class="card">
+        <h2>Average retention curve</h2>
+        <p class="card-sub">% of customers buying again N months after their first purchase (all cohorts, size-weighted).</p>
+        <div class="chart"><canvas id="c-curve" aria-label="Line chart of retention by month"></canvas></div>
+        <div id="tv-curve"></div>
+      </article>
+      <article class="card">
+        <h2>Time to second purchase</h2>
+        <p class="card-sub">Among customers who did come back, most did so within 3 months.</p>
+        <div class="chart"><canvas id="c-gap" aria-label="Bar chart of time to second purchase"></canvas></div>
+        <div id="tv-gap"></div>
+      </article>
+      <article class="card">
+        <h2>Customers by number of purchase days</h2>
+        <p class="card-sub">Nearly every customer bought on a single day.</p>
+        <div class="chart"><canvas id="c-freq" aria-label="Bar chart of purchase frequency"></canvas></div>
+        <div id="tv-freq"></div>
+      </article>
+    </div>
+    <aside class="insights">
+      <h3>What this tells us</h3>
+      <ul>
+        <li><b>97.8% of customers buy only once.</b> Fewer than 0.5% of a cohort return in the following month.</li>
+        <li>Repeat customers spend about <b>2x</b> as much over their lifetime, so +1 point of repeat rate ≈ <b>R$150k</b> in revenue.</li>
+        <li>Target <b>High-Value New</b> customers with a second-purchase offer within 90 days, and run a <b>win-back</b> campaign for <b>At Risk - High Value</b>.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- ============ DELIVERY ============ -->
+  <section class="tab-panel" id="tab-delivery" role="tabpanel" aria-labelledby="tab-btn-delivery" hidden>
+    <div class="tiles" id="tiles-delivery"></div>
+    <div class="grid">
+      <article class="card wide">
+        <h2>Average review score by delivery date vs. promised date</h2>
+        <p class="card-sub">Blue = early, gray = on the day, red = late. Reviews collapse once an order is 4+ days late.</p>
+        <div class="chart"><canvas id="c-delay" aria-label="Bar chart of review score by delivery delay"></canvas></div>
+        <div id="tv-delay"></div>
+      </article>
+      <article class="card">
+        <h2>Late deliveries by purchase month</h2>
+        <p class="card-sub">Spikes in Nov-2017 (Black Friday) and Feb-Mar 2018.</p>
+        <div class="chart short"><canvas id="c-late-month" aria-label="Line chart of late delivery rate by month"></canvas></div>
+        <div id="tv-late-month"></div>
+      </article>
+      <article class="card">
+        <h2>Average review score by purchase month</h2>
+        <p class="card-sub">The lowest-rated months are the late-delivery spikes (correlation -0.92).</p>
+        <div class="chart short"><canvas id="c-review-month" aria-label="Line chart of average review by month"></canvas></div>
+        <div id="tv-review-month"></div>
+      </article>
+      <article class="card">
+        <h2>Late-delivery rate by customer state</h2>
+        <p class="card-sub">Highlighted: more than 1.5x the national rate. States with 100+ delivered orders.</p>
+        <div class="chart tall"><canvas id="c-state-late" aria-label="Bar chart of late rate by state"></canvas></div>
+        <div id="tv-state-late"></div>
+      </article>
+      <article class="card">
+        <h2>Repeat rate by first-order review</h2>
+        <p class="card-sub">Customers whose first order earned 5 stars return most often. First orders Jan-2017 to Feb-2018.</p>
+        <div class="chart"><canvas id="c-first" aria-label="Bar chart of repeat rate by first review"></canvas></div>
+        <div id="tv-first"></div>
+      </article>
+    </div>
+    <aside class="insights">
+      <h3>What this tells us</h3>
+      <ul>
+        <li>Olist promises about <b>24 days</b> but delivers in about <b>12.6</b>. Still, <b>6.8%</b> of orders arrive late, and those average <b>2.27 stars vs 4.29</b>.</li>
+        <li>A late <b>first</b> order lowers the repeat rate from 2.93% to 1.99% (-32%, p = 0.001). Delivery protects ratings; on its own it does not create loyalty.</li>
+        <li>Fix the peaks (capacity planning before Black Friday), add <b>proactive delay alerts</b>, and serve the <b>North-East</b> with regional carriers.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- ============ SELLERS ============ -->
+  <section class="tab-panel" id="tab-sellers" role="tabpanel" aria-labelledby="tab-btn-sellers" hidden>
+    <div class="tiles" id="tiles-sellers"></div>
+    <div class="grid">
+      <article class="card">
+        <h2>Top 10 categories by product revenue</h2>
+        <p class="card-sub">Hover for orders, average review and late rate.</p>
+        <div class="chart"><canvas id="c-cats" aria-label="Bar chart of revenue by category"></canvas></div>
+        <div id="tv-cats"></div>
+      </article>
+      <article class="card">
+        <h2>Revenue share by seller decile</h2>
+        <p class="card-sub">Sellers ranked by revenue and split into 10 equal groups.</p>
+        <div class="chart"><canvas id="c-deciles" aria-label="Bar chart of revenue by seller decile"></canvas></div>
+        <div id="tv-deciles"></div>
+      </article>
+      <article class="card">
+        <h2>Lowest-rated categories (500+ orders)</h2>
+        <p class="card-sub">Office furniture stands out: 1 in 4 reviews is 1-2 stars.</p>
+        <div id="tbl-lowcats"></div>
+      </article>
+      <article class="card">
+        <h2>Sellers with the highest late rate (100+ orders)</h2>
+        <p class="card-sub">Candidates for an SLA review.</p>
+        <div id="tbl-sellers"></div>
+      </article>
+    </div>
+    <aside class="insights">
+      <h3>What this tells us</h3>
+      <ul>
+        <li>Revenue is highly concentrated: the <b>top 10% of sellers bring about two-thirds</b> of it. Keeping them happy is critical.</li>
+        <li>The <b>30% of sellers with the worst late rate cause 54% of late orders</b>. A seller scorecard with SLA targets would hit most delays.</li>
+        <li>Big categories like bed/bath/table and furniture are rated below average. Check product descriptions and packaging there.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <footer id="footer"></footer>
+</div>
+
+<script>
+const DATA = {"integrity_checks":[{"check_name":"customers: person with >1 customer_id (repeat buyers)","affected":2997},{"check_name":"reviews: duplicate review_id","affected":814},{"check_name":"reviews: orders with more than one review","affected":547},{"check_name":"orders: no review at all","affected":768},{"check_name":"orders: no items","affected":775},{"check_name":"orders: no payment","affected":1},{"check_name":"order_items: product not in products table","affected":0},{"check_name":"products: missing category","affected":610},{"check_name":"products: category without English translation","affected":2},{"check_name":"orders: delivered before purchase (impossible)","affected":0},{"check_name":"orders: handed to carrier before purchase (impossible)","affected":166},{"check_name":"payments: zero payment value","affected":9},{"check_name":"geolocation: exact duplicate rows","affected":261831}],"order_status_breakdown":[{"order_status":"delivered","orders":96478,"pct_of_orders":97.02},{"order_status":"shipped","orders":1107,"pct_of_orders":1.11},{"order_status":"canceled","orders":625,"pct_of_orders":0.63},{"order_status":"unavailable","orders":609,"pct_of_orders":0.61},{"order_status":"invoiced","orders":314,"pct_of_orders":0.32},{"order_status":"processing","orders":301,"pct_of_orders":0.3},{"order_status":"created","orders":5,"pct_of_orders":0.01},{"order_status":"approved","orders":2,"pct_of_orders":0.0}],"orders_missing_values":[{"total_orders":99441,"missing_approved_at":160,"missing_carrier_date":1783,"missing_delivered_date":2965,"delivered_but_no_date":8,"not_delivered_but_has_date":6}],"orders_per_month":[{"purchase_month":"2016-09","orders":4},{"purchase_month":"2016-10","orders":324},{"purchase_month":"2016-12","orders":1},{"purchase_month":"2017-01","orders":800},{"purchase_month":"2017-02","orders":1780},{"purchase_month":"2017-03","orders":2682},{"purchase_month":"2017-04","orders":2404},{"purchase_month":"2017-05","orders":3700},{"purchase_month":"2017-06","orders":3245},{"purchase_month":"2017-07","orders":4026},{"purchase_month":"2017-08","orders":4331},{"purchase_month":"2017-09","orders":4285},{"purchase_month":"2017-10","orders":4631},{"purchase_month":"2017-11","orders":7544},{"purchase_month":"2017-12","orders":5673},{"purchase_month":"2018-01","orders":7269},{"purchase_month":"2018-02","orders":6728},{"purchase_month":"2018-03","orders":7211},{"purchase_month":"2018-04","orders":6939},{"purchase_month":"2018-05","orders":6873},{"purchase_month":"2018-06","orders":6167},{"purchase_month":"2018-07","orders":6292},{"purchase_month":"2018-08","orders":6512},{"purchase_month":"2018-09","orders":16},{"purchase_month":"2018-10","orders":4}],"row_counts":[{"table_name":"customers","row_count":99441},{"table_name":"orders","row_count":99441},{"table_name":"order_items","row_count":112650},{"table_name":"order_payments","row_count":103886},{"table_name":"order_reviews","row_count":99224},{"table_name":"products","row_count":32951},{"table_name":"sellers","row_count":3095},{"table_name":"category_translation","row_count":71},{"table_name":"geolocation","row_count":1000163}],"clean_view_row_counts":[{"view_name":"v_orders","row_count":98207},{"view_name":"v_customers","row_count":94990},{"view_name":"v_orders (delivered)","row_count":96470}],"headline_kpis":[{"total_orders":98207,"total_customers":94990,"total_revenue":15735527.0,"avg_order_value":160.24,"avg_items_per_order":1.14,"avg_review_score":4.12,"first_order_date":"2016-09-04","last_order_date":"2018-09-03"}],"monthly_trend":[{"purchase_month":"2017-01","orders":787,"customers":753,"revenue":136943.0,"avg_order_value":174.01,"revenue_mom_pct":null},{"purchase_month":"2017-02","orders":1718,"customers":1693,"revenue":283562.0,"avg_order_value":165.05,"revenue_mom_pct":107.1},{"purchase_month":"2017-03","orders":2617,"customers":2577,"revenue":425618.0,"avg_order_value":162.64,"revenue_mom_pct":50.1},{"purchase_month":"2017-04","orders":2377,"customers":2345,"revenue":405849.0,"avg_order_value":170.74,"revenue_mom_pct":-4.6},{"purchase_month":"2017-05","orders":3640,"customers":3569,"revenue":582711.0,"avg_order_value":160.09,"revenue_mom_pct":43.6},{"purchase_month":"2017-06","orders":3205,"customers":3142,"revenue":499652.0,"avg_order_value":155.9,"revenue_mom_pct":-14.3},{"purchase_month":"2017-07","orders":3946,"customers":3872,"revenue":578754.0,"avg_order_value":146.67,"revenue_mom_pct":15.8},{"purchase_month":"2017-08","orders":4272,"customers":4191,"revenue":661904.0,"avg_order_value":154.94,"revenue_mom_pct":14.4},{"purchase_month":"2017-09","orders":4227,"customers":4154,"revenue":717103.0,"avg_order_value":169.65,"revenue_mom_pct":8.3},{"purchase_month":"2017-10","orders":4547,"customers":4481,"revenue":764756.0,"avg_order_value":168.19,"revenue_mom_pct":6.6},{"purchase_month":"2017-11","orders":7423,"customers":7315,"revenue":1172192.0,"avg_order_value":157.91,"revenue_mom_pct":53.3},{"purchase_month":"2017-12","orders":5620,"customers":5553,"revenue":861527.0,"avg_order_value":153.3,"revenue_mom_pct":-26.5},{"purchase_month":"2018-01","orders":7187,"customers":7088,"revenue":1101920.0,"avg_order_value":153.32,"revenue_mom_pct":27.9},{"purchase_month":"2018-02","orders":6625,"customers":6469,"revenue":979486.0,"avg_order_value":147.85,"revenue_mom_pct":-11.1},{"purchase_month":"2018-03","orders":7168,"customers":7077,"revenue":1152657.0,"avg_order_value":160.81,"revenue_mom_pct":17.7},{"purchase_month":"2018-04","orders":6919,"customers":6863,"revenue":1156249.0,"avg_order_value":167.11,"revenue_mom_pct":0.3},{"purchase_month":"2018-05","orders":6833,"customers":6775,"revenue":1145686.0,"avg_order_value":167.67,"revenue_mom_pct":-0.9},{"purchase_month":"2018-06","orders":6145,"customers":6106,"revenue":1020382.0,"avg_order_value":166.05,"revenue_mom_pct":-10.9},{"purchase_month":"2018-07","orders":6233,"customers":6172,"revenue":1039784.0,"avg_order_value":166.82,"revenue_mom_pct":1.9},{"purchase_month":"2018-08","orders":6421,"customers":6380,"revenue":996974.0,"avg_order_value":155.27,"revenue_mom_pct":-4.1}],"orders_by_weekday":[{"weekday_num":0,"weekday":"Sun","orders":11831,"pct_of_orders":12.0},{"weekday_num":1,"weekday":"Mon","orders":15979,"pct_of_orders":16.3},{"weekday_num":2,"weekday":"Tue","orders":15760,"pct_of_orders":16.0},{"weekday_num":3,"weekday":"Wed","orders":15353,"pct_of_orders":15.6},{"weekday_num":4,"weekday":"Thu","orders":14571,"pct_of_orders":14.8},{"weekday_num":5,"weekday":"Fri","orders":13949,"pct_of_orders":14.2},{"weekday_num":6,"weekday":"Sat","orders":10764,"pct_of_orders":11.0}],"payment_mix":[{"payment_type":"credit_card","orders":74116,"pct_of_orders":75.5,"avg_order_value":166.61,"avg_installments":3.6},{"payment_type":"boleto","orders":19539,"pct_of_orders":19.9,"avg_order_value":144.69,"avg_installments":1.0},{"payment_type":"voucher","orders":3037,"pct_of_orders":3.1,"avg_order_value":114.93,"avg_installments":1.0},{"payment_type":"debit_card","orders":1514,"pct_of_orders":1.5,"avg_order_value":140.3,"avg_installments":1.0}],"revenue_by_state":[{"customer_state":"SP","orders":41127,"revenue":5878132.0,"revenue_share_pct":37.4,"avg_order_value":142.93,"avg_freight":17.37},{"customer_state":"RJ","orders":12698,"revenue":2115668.0,"revenue_share_pct":13.4,"avg_order_value":166.63,"avg_freight":23.95},{"customer_state":"MG","orders":11496,"revenue":1843074.0,"revenue_share_pct":11.7,"avg_order_value":160.32,"avg_freight":23.45},{"customer_state":"RS","orders":5417,"revenue":877291.0,"revenue_share_pct":5.6,"avg_order_value":162.01,"avg_freight":24.88},{"customer_state":"PR","orders":4983,"revenue":794197.0,"revenue_share_pct":5.0,"avg_order_value":159.41,"avg_freight":23.55},{"customer_state":"SC","orders":3600,"revenue":608024.0,"revenue_share_pct":3.9,"avg_order_value":168.94,"avg_freight":24.85},{"customer_state":"BA","orders":3344,"revenue":606909.0,"revenue_share_pct":3.9,"avg_order_value":181.49,"avg_freight":29.84},{"customer_state":"DF","orders":2121,"revenue":351327.0,"revenue_share_pct":2.2,"avg_order_value":165.72,"avg_freight":23.79},{"customer_state":"GO","orders":1998,"revenue":340544.0,"revenue_share_pct":2.2,"avg_order_value":170.44,"avg_freight":26.36},{"customer_state":"ES","orders":2018,"revenue":323081.0,"revenue_share_pct":2.1,"avg_order_value":160.1,"avg_freight":24.55},{"customer_state":"PE","orders":1643,"revenue":321018.0,"revenue_share_pct":2.0,"avg_order_value":195.39,"avg_freight":36.08},{"customer_state":"CE","orders":1323,"revenue":274523.0,"revenue_share_pct":1.7,"avg_order_value":207.5,"avg_freight":36.48},{"customer_state":"PA","orders":969,"revenue":217481.0,"revenue_share_pct":1.4,"avg_order_value":224.44,"avg_freight":39.9},{"customer_state":"MT","orders":902,"revenue":186005.0,"revenue_share_pct":1.2,"avg_order_value":206.21,"avg_freight":32.92},{"customer_state":"MA","orders":736,"revenue":150688.0,"revenue_share_pct":1.0,"avg_order_value":204.74,"avg_freight":42.66},{"customer_state":"PB","orders":531,"revenue":140523.0,"revenue_share_pct":0.9,"avg_order_value":264.64,"avg_freight":48.3},{"customer_state":"MS","orders":708,"revenue":135876.0,"revenue_share_pct":0.9,"avg_order_value":191.91,"avg_freight":27.01},{"customer_state":"PI","orders":490,"revenue":107765.0,"revenue_share_pct":0.7,"avg_order_value":219.93,"avg_freight":43.07},{"customer_state":"RN","orders":482,"revenue":101895.0,"revenue_share_pct":0.6,"avg_order_value":211.4,"avg_freight":39.13},{"customer_state":"AL","orders":411,"revenue":96229.0,"revenue_share_pct":0.6,"avg_order_value":234.13,"avg_freight":38.72},{"customer_state":"SE","orders":345,"revenue":73032.0,"revenue_share_pct":0.5,"avg_order_value":211.69,"avg_freight":40.9},{"customer_state":"TO","orders":278,"revenue":61104.0,"revenue_share_pct":0.4,"avg_order_value":219.8,"avg_freight":42.07},{"customer_state":"RO","orders":246,"revenue":57424.0,"revenue_share_pct":0.4,"avg_order_value":233.43,"avg_freight":46.31},{"customer_state":"AM","orders":147,"revenue":27836.0,"revenue_share_pct":0.2,"avg_order_value":189.36,"avg_freight":37.27},{"customer_state":"AC","orders":81,"revenue":19670.0,"revenue_share_pct":0.1,"avg_order_value":242.84,"avg_freight":45.52},{"customer_state":"AP","orders":68,"revenue":16263.0,"revenue_share_pct":0.1,"avg_order_value":239.16,"avg_freight":41.01},{"customer_state":"RR","orders":45,"revenue":9949.0,"revenue_share_pct":0.1,"avg_order_value":221.09,"avg_freight":49.1}],"yoy_jan_aug":[{"year":2017,"orders":22562,"revenue":3574992.0,"avg_order_value":158.45,"revenue_growth_pct":null,"order_growth_pct":null},{"year":2018,"orders":53531,"revenue":8593138.0,"avg_order_value":160.53,"revenue_growth_pct":140.4,"order_growth_pct":137.3}],"cohort_retention":[{"cohort_month":"2017-01","cohort_customers":752,"month_number":0,"active_customers":752,"retention_pct":100.0},{"cohort_month":"2017-01","cohort_customers":752,"month_number":1,"active_customers":3,"retention_pct":0.4},{"cohort_month":"2017-01","cohort_customers":752,"month_number":2,"active_customers":2,"retention_pct":0.27},{"cohort_month":"2017-01","cohort_customers":752,"month_number":3,"active_customers":1,"retention_pct":0.13},{"cohort_month":"2017-01","cohort_customers":752,"month_number":4,"active_customers":3,"retention_pct":0.4},{"cohort_month":"2017-01","cohort_customers":752,"month_number":5,"active_customers":1,"retention_pct":0.13},{"cohort_month":"2017-01","cohort_customers":752,"month_number":6,"active_customers":3,"retention_pct":0.4},{"cohort_month":"2017-01","cohort_customers":752,"month_number":7,"active_customers":1,"retention_pct":0.13},{"cohort_month":"2017-01","cohort_customers":752,"month_number":8,"active_customers":1,"retention_pct":0.13},{"cohort_month":"2017-01","cohort_customers":752,"month_number":10,"active_customers":3,"retention_pct":0.4},{"cohort_month":"2017-01","cohort_customers":752,"month_number":11,"active_customers":1,"retention_pct":0.13},{"cohort_month":"2017-01","cohort_customers":752,"month_number":12,"active_customers":5,"retention_pct":0.66},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":0,"active_customers":1690,"retention_pct":100.0},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":1,"active_customers":4,"retention_pct":0.24},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":2,"active_customers":5,"retention_pct":0.3},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":3,"active_customers":2,"retention_pct":0.12},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":4,"active_customers":7,"retention_pct":0.41},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":5,"active_customers":2,"retention_pct":0.12},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":6,"active_customers":4,"retention_pct":0.24},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":7,"active_customers":3,"retention_pct":0.18},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":8,"active_customers":2,"retention_pct":0.12},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":9,"active_customers":3,"retention_pct":0.18},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":10,"active_customers":2,"retention_pct":0.12},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":11,"active_customers":5,"retention_pct":0.3},{"cohort_month":"2017-02","cohort_customers":1690,"month_number":12,"active_customers":2,"retention_pct":0.12},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":0,"active_customers":2571,"retention_pct":100.0},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":1,"active_customers":13,"retention_pct":0.51},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":2,"active_customers":9,"retention_pct":0.35},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":3,"active_customers":10,"retention_pct":0.39},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":4,"active_customers":9,"retention_pct":0.35},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":5,"active_customers":4,"retention_pct":0.16},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":6,"active_customers":4,"retention_pct":0.16},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":7,"active_customers":8,"retention_pct":0.31},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":8,"active_customers":9,"retention_pct":0.35},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":9,"active_customers":2,"retention_pct":0.08},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":10,"active_customers":10,"retention_pct":0.39},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":11,"active_customers":3,"retention_pct":0.12},{"cohort_month":"2017-03","cohort_customers":2571,"month_number":12,"active_customers":6,"retention_pct":0.23},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":0,"active_customers":2325,"retention_pct":100.0},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":1,"active_customers":14,"retention_pct":0.6},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":2,"active_customers":5,"retention_pct":0.22},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":3,"active_customers":4,"retention_pct":0.17},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":4,"active_customers":7,"retention_pct":0.3},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":5,"active_customers":6,"retention_pct":0.26},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":6,"active_customers":8,"retention_pct":0.34},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":7,"active_customers":7,"retention_pct":0.3},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":8,"active_customers":7,"retention_pct":0.3},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":9,"active_customers":4,"retention_pct":0.17},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":10,"active_customers":6,"retention_pct":0.26},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":11,"active_customers":2,"retention_pct":0.09},{"cohort_month":"2017-04","cohort_customers":2325,"month_number":12,"active_customers":2,"retention_pct":0.09},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":0,"active_customers":3541,"retention_pct":100.0},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":1,"active_customers":17,"retention_pct":0.48},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":2,"active_customers":17,"retention_pct":0.48},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":3,"active_customers":14,"retention_pct":0.4},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":4,"active_customers":11,"retention_pct":0.31},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":5,"active_customers":12,"retention_pct":0.34},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":6,"active_customers":15,"retention_pct":0.42},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":7,"active_customers":5,"retention_pct":0.14},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":8,"active_customers":9,"retention_pct":0.25},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":9,"active_customers":9,"retention_pct":0.25},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":10,"active_customers":9,"retention_pct":0.25},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":11,"active_customers":12,"retention_pct":0.34},{"cohort_month":"2017-05","cohort_customers":3541,"month_number":12,"active_customers":9,"retention_pct":0.25},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":0,"active_customers":3102,"retention_pct":100.0},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":1,"active_customers":14,"retention_pct":0.45},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":2,"active_customers":11,"retention_pct":0.35},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":3,"active_customers":12,"retention_pct":0.39},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":4,"active_customers":8,"retention_pct":0.26},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":5,"active_customers":12,"retention_pct":0.39},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":6,"active_customers":11,"retention_pct":0.35},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":7,"active_customers":7,"retention_pct":0.23},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":8,"active_customers":4,"retention_pct":0.13},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":9,"active_customers":7,"retention_pct":0.23},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":10,"active_customers":10,"retention_pct":0.32},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":11,"active_customers":10,"retention_pct":0.32},{"cohort_month":"2017-06","cohort_customers":3102,"month_number":12,"active_customers":5,"retention_pct":0.16},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":0,"active_customers":3822,"retention_pct":100.0},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":1,"active_customers":20,"retention_pct":0.52},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":2,"active_customers":13,"retention_pct":0.34},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":3,"active_customers":9,"retention_pct":0.24},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":4,"active_customers":11,"retention_pct":0.29},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":5,"active_customers":8,"retention_pct":0.21},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":6,"active_customers":12,"retention_pct":0.31},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":7,"active_customers":4,"retention_pct":0.1},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":8,"active_customers":7,"retention_pct":0.18},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":9,"active_customers":10,"retention_pct":0.26},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":10,"active_customers":8,"retention_pct":0.21},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":11,"active_customers":11,"retention_pct":0.29},{"cohort_month":"2017-07","cohort_customers":3822,"month_number":12,"active_customers":5,"retention_pct":0.13},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":0,"active_customers":4130,"retention_pct":100.0},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":1,"active_customers":28,"retention_pct":0.68},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":2,"active_customers":14,"retention_pct":0.34},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":3,"active_customers":11,"retention_pct":0.27},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":4,"active_customers":15,"retention_pct":0.36},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":5,"active_customers":22,"retention_pct":0.53},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":6,"active_customers":12,"retention_pct":0.29},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":7,"active_customers":11,"retention_pct":0.27},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":8,"active_customers":6,"retention_pct":0.15},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":9,"active_customers":6,"retention_pct":0.15},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":10,"active_customers":10,"retention_pct":0.24},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":11,"active_customers":8,"retention_pct":0.19},{"cohort_month":"2017-08","cohort_customers":4130,"month_number":12,"active_customers":5,"retention_pct":0.12},{"cohort_month":"2017-09","cohort_customers":4075,"month_number":0,"active_customers":4075,"retention_pct":100.0},{"cohort_month":"2017-09","cohort_customers":4075,"month_number":1,"active_customers":28,"retention_pct":0.69},{"cohort_month":"2017-09","cohort_customers":4075,"month_number":2,"active_customers":22,"retention_pct":0.54},{"cohort_month":"2017-09","cohort_customers":4075,"month_number":3,"active_customers":12,"retention_pct":0.29},{"cohort_month":"2017-09","cohort_customers":4075,"month_number":4,"active_customers":18,"retention_pct":0.44},{"cohort_month":"2017-09","cohort_customers":4075,"month_number":5,"active_customers":9,"retention_pct":0.22},{"cohort_month":"2017-09","cohort_customers":4075,"month_number":6,"active_customers":9,"retention_pct":0.22},{"cohort_month":"2017-09","cohort_customers":4075,"month_number":7,"active_customers":10,"retention_pct":0.25},{"cohort_month":"2017-09","cohort_customers":4075,"month_number":8,"active_customers":12,"retention_pct":0.29},{"cohort_month":"2017-09","cohort_customers":4075,"month_number":9,"active_customers":7,"retention_pct":0.17},{"cohort_month":"2017-09","cohort_customers":4075,"month_number":10,"active_customers":11,"retention_pct":0.27},{"cohort_month":"2017-09","cohort_customers":4075,"month_number":11,"active_customers":3,"retention_pct":0.07},{"cohort_month":"2017-10","cohort_customers":4392,"month_number":0,"active_customers":4392,"retention_pct":100.0},{"cohort_month":"2017-10","cohort_customers":4392,"month_number":1,"active_customers":31,"retention_pct":0.71},{"cohort_month":"2017-10","cohort_customers":4392,"month_number":2,"active_customers":11,"retention_pct":0.25},{"cohort_month":"2017-10","cohort_customers":4392,"month_number":3,"active_customers":4,"retention_pct":0.09},{"cohort_month":"2017-10","cohort_customers":4392,"month_number":4,"active_customers":10,"retention_pct":0.23},{"cohort_month":"2017-10","cohort_customers":4392,"month_number":5,"active_customers":9,"retention_pct":0.2},{"cohort_month":"2017-10","cohort_customers":4392,"month_number":6,"active_customers":9,"retention_pct":0.2},{"cohort_month":"2017-10","cohort_customers":4392,"month_number":7,"active_customers":16,"retention_pct":0.36},{"cohort_month":"2017-10","cohort_customers":4392,"month_number":8,"active_customers":12,"retention_pct":0.27},{"cohort_month":"2017-10","cohort_customers":4392,"month_number":9,"active_customers":9,"retention_pct":0.2},{"cohort_month":"2017-10","cohort_customers":4392,"month_number":10,"active_customers":9,"retention_pct":0.2},{"cohort_month":"2017-11","cohort_customers":7190,"month_number":0,"active_customers":7190,"retention_pct":100.0},{"cohort_month":"2017-11","cohort_customers":7190,"month_number":1,"active_customers":40,"retention_pct":0.56},{"cohort_month":"2017-11","cohort_customers":7190,"month_number":2,"active_customers":28,"retention_pct":0.39},{"cohort_month":"2017-11","cohort_customers":7190,"month_number":3,"active_customers":12,"retention_pct":0.17},{"cohort_month":"2017-11","cohort_customers":7190,"month_number":4,"active_customers":14,"retention_pct":0.19},{"cohort_month":"2017-11","cohort_customers":7190,"month_number":5,"active_customers":13,"retention_pct":0.18},{"cohort_month":"2017-11","cohort_customers":7190,"month_number":6,"active_customers":8,"retention_pct":0.11},{"cohort_month":"2017-11","cohort_customers":7190,"month_number":7,"active_customers":14,"retention_pct":0.19},{"cohort_month":"2017-11","cohort_customers":7190,"month_number":8,"active_customers":9,"retention_pct":0.13},{"cohort_month":"2017-11","cohort_customers":7190,"month_number":9,"active_customers":4,"retention_pct":0.06},{"cohort_month":"2017-12","cohort_customers":5439,"month_number":0,"active_customers":5439,"retention_pct":100.0},{"cohort_month":"2017-12","cohort_customers":5439,"month_number":1,"active_customers":12,"retention_pct":0.22},{"cohort_month":"2017-12","cohort_customers":5439,"month_number":2,"active_customers":15,"retention_pct":0.28},{"cohort_month":"2017-12","cohort_customers":5439,"month_number":3,"active_customers":19,"retention_pct":0.35},{"cohort_month":"2017-12","cohort_customers":5439,"month_number":4,"active_customers":14,"retention_pct":0.26},{"cohort_month":"2017-12","cohort_customers":5439,"month_number":5,"active_customers":11,"retention_pct":0.2},{"cohort_month":"2017-12","cohort_customers":5439,"month_number":6,"active_customers":9,"retention_pct":0.17},{"cohort_month":"2017-12","cohort_customers":5439,"month_number":7,"active_customers":2,"retention_pct":0.04},{"cohort_month":"2017-12","cohort_customers":5439,"month_number":8,"active_customers":12,"retention_pct":0.22},{"cohort_month":"2018-01","cohort_customers":6951,"month_number":0,"active_customers":6951,"retention_pct":100.0},{"cohort_month":"2018-01","cohort_customers":6951,"month_number":1,"active_customers":23,"retention_pct":0.33},{"cohort_month":"2018-01","cohort_customers":6951,"month_number":2,"active_customers":25,"retention_pct":0.36},{"cohort_month":"2018-01","cohort_customers":6951,"month_number":3,"active_customers":20,"retention_pct":0.29},{"cohort_month":"2018-01","cohort_customers":6951,"month_number":4,"active_customers":20,"retention_pct":0.29},{"cohort_month":"2018-01","cohort_customers":6951,"month_number":5,"active_customers":11,"retention_pct":0.16},{"cohort_month":"2018-01","cohort_customers":6951,"month_number":6,"active_customers":12,"retention_pct":0.17},{"cohort_month":"2018-01","cohort_customers":6951,"month_number":7,"active_customers":16,"retention_pct":0.23},{"cohort_month":"2018-02","cohort_customers":6357,"month_number":0,"active_customers":6357,"retention_pct":100.0},{"cohort_month":"2018-02","cohort_customers":6357,"month_number":1,"active_customers":23,"retention_pct":0.36},{"cohort_month":"2018-02","cohort_customers":6357,"month_number":2,"active_customers":25,"retention_pct":0.39},{"cohort_month":"2018-02","cohort_customers":6357,"month_number":3,"active_customers":19,"retention_pct":0.3},{"cohort_month":"2018-02","cohort_customers":6357,"month_number":4,"active_customers":17,"retention_pct":0.27},{"cohort_month":"2018-02","cohort_customers":6357,"month_number":5,"active_customers":14,"retention_pct":0.22},{"cohort_month":"2018-02","cohort_customers":6357,"month_number":6,"active_customers":13,"retention_pct":0.2},{"cohort_month":"2018-03","cohort_customers":6931,"month_number":0,"active_customers":6931,"retention_pct":100.0},{"cohort_month":"2018-03","cohort_customers":6931,"month_number":1,"active_customers":28,"retention_pct":0.4},{"cohort_month":"2018-03","cohort_customers":6931,"month_number":2,"active_customers":21,"retention_pct":0.3},{"cohort_month":"2018-03","cohort_customers":6931,"month_number":3,"active_customers":20,"retention_pct":0.29},{"cohort_month":"2018-03","cohort_customers":6931,"month_number":4,"active_customers":9,"retention_pct":0.13},{"cohort_month":"2018-03","cohort_customers":6931,"month_number":5,"active_customers":8,"retention_pct":0.12},{"cohort_month":"2018-04","cohort_customers":6698,"month_number":0,"active_customers":6698,"retention_pct":100.0},{"cohort_month":"2018-04","cohort_customers":6698,"month_number":1,"active_customers":39,"retention_pct":0.58},{"cohort_month":"2018-04","cohort_customers":6698,"month_number":2,"active_customers":21,"retention_pct":0.31},{"cohort_month":"2018-04","cohort_customers":6698,"month_number":3,"active_customers":16,"retention_pct":0.24},{"cohort_month":"2018-04","cohort_customers":6698,"month_number":4,"active_customers":9,"retention_pct":0.13},{"cohort_month":"2018-05","cohort_customers":6586,"month_number":0,"active_customers":6586,"retention_pct":100.0},{"cohort_month":"2018-05","cohort_customers":6586,"month_number":1,"active_customers":34,"retention_pct":0.52},{"cohort_month":"2018-05","cohort_customers":6586,"month_number":2,"active_customers":17,"retention_pct":0.26},{"cohort_month":"2018-05","cohort_customers":6586,"month_number":3,"active_customers":13,"retention_pct":0.2},{"cohort_month":"2018-06","cohort_customers":5920,"month_number":0,"active_customers":5920,"retention_pct":100.0},{"cohort_month":"2018-06","cohort_customers":5920,"month_number":1,"active_customers":25,"retention_pct":0.42},{"cohort_month":"2018-06","cohort_customers":5920,"month_number":2,"active_customers":16,"retention_pct":0.27},{"cohort_month":"2018-07","cohort_customers":6016,"month_number":0,"active_customers":6016,"retention_pct":100.0},{"cohort_month":"2018-07","cohort_customers":6016,"month_number":1,"active_customers":31,"retention_pct":0.52},{"cohort_month":"2018-08","cohort_customers":6209,"month_number":0,"active_customers":6209,"retention_pct":100.0},{"cohort_month":"2018-08","cohort_customers":6209,"month_number":1,"active_customers":1,"retention_pct":0.02}],"days_to_second_purchase":[{"time_to_2nd_purchase":"1. within 30 days","customers":615,"pct_of_repeaters":29.8},{"time_to_2nd_purchase":"2. 31-90 days","customers":518,"pct_of_repeaters":25.1},{"time_to_2nd_purchase":"3. 91-180 days","customers":434,"pct_of_repeaters":21.0},{"time_to_2nd_purchase":"4. 181-365 days","customers":411,"pct_of_repeaters":19.9},{"time_to_2nd_purchase":"5. over 1 year","customers":87,"pct_of_repeaters":4.2}],"purchase_frequency":[{"purchase_days":"1","customers":92925,"pct_of_customers":97.83,"revenue":15072305.0,"pct_of_revenue":95.79},{"purchase_days":"2","customers":1909,"pct_of_customers":2.01,"revenue":581501.0,"pct_of_revenue":3.7},{"purchase_days":"3","customers":124,"pct_of_customers":0.13,"revenue":55795.0,"pct_of_revenue":0.35},{"purchase_days":"4+","customers":32,"pct_of_customers":0.03,"revenue":25926.0,"pct_of_revenue":0.16}],"repeat_rate":[{"customers":94990,"customers_with_2plus_orders":2888,"repeat_customers":2065,"repeat_rate_pct":2.17,"avg_spend_repeat":321.17,"avg_spend_one_time":162.21}],"retention_curve":[{"month_number":1,"customers_observed":88488,"active_customers":427,"retention_pct":0.483},{"month_number":2,"customers_observed":82472,"active_customers":277,"retention_pct":0.336},{"month_number":3,"customers_observed":76552,"active_customers":198,"retention_pct":0.259},{"month_number":4,"customers_observed":69966,"active_customers":182,"retention_pct":0.26},{"month_number":5,"customers_observed":63268,"active_customers":142,"retention_pct":0.224},{"month_number":6,"customers_observed":56337,"active_customers":129,"retention_pct":0.229},{"month_number":7,"customers_observed":49980,"active_customers":104,"retention_pct":0.208},{"month_number":8,"customers_observed":43029,"active_customers":90,"retention_pct":0.209},{"month_number":9,"customers_observed":37590,"active_customers":61,"retention_pct":0.162},{"month_number":10,"customers_observed":30400,"active_customers":78,"retention_pct":0.257},{"month_number":11,"customers_observed":26008,"active_customers":55,"retention_pct":0.211},{"month_number":12,"customers_observed":21933,"active_customers":39,"retention_pct":0.178}],"rfm_score_thresholds":[{"metric":"monetary_brl","score":1,"min_value":9.59,"max_value":55.36,"customers":18997},{"metric":"monetary_brl","score":2,"min_value":55.36,"max_value":87.5,"customers":18997},{"metric":"monetary_brl","score":3,"min_value":87.51,"max_value":133.05,"customers":18997},{"metric":"monetary_brl","score":4,"min_value":133.05,"max_value":209.11,"customers":18996},{"metric":"monetary_brl","score":5,"min_value":209.11,"max_value":13664.08,"customers":18996},{"metric":"recency_days","score":1,"min_value":389.0,"max_value":730.0,"customers":18996},{"metric":"recency_days","score":2,"min_value":274.0,"max_value":389.0,"customers":18996},{"metric":"recency_days","score":3,"min_value":183.0,"max_value":274.0,"customers":18997},{"metric":"recency_days","score":4,"min_value":99.0,"max_value":183.0,"customers":18997},{"metric":"recency_days","score":5,"min_value":1.0,"max_value":99.0,"customers":18997}],"rfm_segment_summary":[{"segment":"High-Value New","customers":14708,"pct_customers":15.5,"avg_recency_days":98.0,"avg_frequency":1.0,"avg_spend":303.16,"revenue":4458945.0,"pct_revenue":28.3},{"segment":"At Risk - High Value","customers":14361,"pct_customers":15.1,"avg_recency_days":401.0,"avg_frequency":1.0,"avg_spend":310.13,"revenue":4453787.0,"pct_revenue":28.3},{"segment":"Need Attention","customers":18610,"pct_customers":19.6,"avg_recency_days":226.0,"avg_frequency":1.0,"avg_spend":153.48,"revenue":2856305.0,"pct_revenue":18.2},{"segment":"Lost - Low Value","customers":23041,"pct_customers":24.3,"avg_recency_days":403.0,"avg_frequency":1.0,"avg_spend":72.92,"revenue":1680142.0,"pct_revenue":10.7},{"segment":"New - Low Spend","customers":22198,"pct_customers":23.4,"avg_recency_days":96.0,"avg_frequency":1.0,"avg_spend":73.12,"revenue":1623125.0,"pct_revenue":10.3},{"segment":"Champions","customers":1088,"pct_customers":1.1,"avg_recency_days":93.0,"avg_frequency":2.14,"avg_spend":326.78,"revenue":355541.0,"pct_revenue":2.3},{"segment":"Loyal - Lapsing","customers":977,"pct_customers":1.0,"avg_recency_days":315.0,"avg_frequency":2.07,"avg_spend":314.92,"revenue":307681.0,"pct_revenue":2.0}],"delivery_by_state":[{"customer_state":"AL","delivered_orders":397,"avg_delivery_days":24.5,"late_pct":21.4,"avg_freight":38.58,"avg_review_score":3.85},{"customer_state":"MA","delivered_orders":717,"avg_delivery_days":21.6,"late_pct":17.4,"avg_freight":42.95,"avg_review_score":3.83},{"customer_state":"SE","delivered_orders":335,"avg_delivery_days":21.5,"late_pct":15.2,"avg_freight":40.94,"avg_review_score":3.91},{"customer_state":"PI","delivered_orders":476,"avg_delivery_days":19.5,"late_pct":13.9,"avg_freight":42.98,"avg_review_score":3.99},{"customer_state":"CE","delivered_orders":1279,"avg_delivery_days":21.3,"late_pct":13.8,"avg_freight":36.5,"avg_review_score":3.94},{"customer_state":"BA","delivered_orders":3256,"avg_delivery_days":19.3,"late_pct":12.2,"avg_freight":29.96,"avg_review_score":3.93},{"customer_state":"RJ","delivered_orders":12350,"avg_delivery_days":15.3,"late_pct":12.1,"avg_freight":23.95,"avg_review_score":3.97},{"customer_state":"PA","delivered_orders":946,"avg_delivery_days":23.8,"late_pct":11.2,"avg_freight":39.7,"avg_review_score":3.91},{"customer_state":"ES","delivered_orders":1995,"avg_delivery_days":15.8,"late_pct":10.7,"avg_freight":24.57,"avg_review_score":4.08},{"customer_state":"PB","delivered_orders":517,"avg_delivery_days":20.4,"late_pct":10.4,"avg_freight":48.84,"avg_review_score":4.08},{"customer_state":"TO","delivered_orders":274,"avg_delivery_days":17.7,"late_pct":9.9,"avg_freight":42.35,"avg_review_score":4.15},{"customer_state":"MS","delivered_orders":701,"avg_delivery_days":15.6,"late_pct":9.7,"avg_freight":27.02,"avg_review_score":4.16},{"customer_state":"PE","delivered_orders":1593,"avg_delivery_days":18.4,"late_pct":9.6,"avg_freight":35.83,"avg_review_score":4.08},{"customer_state":"RN","delivered_orders":474,"avg_delivery_days":19.3,"late_pct":9.3,"avg_freight":39.26,"avg_review_score":4.15},{"customer_state":"SC","delivered_orders":3546,"avg_delivery_days":15.0,"late_pct":8.2,"avg_freight":24.85,"avg_review_score":4.13},{"customer_state":"GO","delivered_orders":1957,"avg_delivery_days":15.6,"late_pct":6.5,"avg_freight":26.25,"avg_review_score":4.1},{"customer_state":"RS","delivered_orders":5344,"avg_delivery_days":15.3,"late_pct":6.1,"avg_freight":24.81,"avg_review_score":4.18},{"customer_state":"MT","delivered_orders":886,"avg_delivery_days":18.1,"late_pct":6.0,"avg_freight":32.77,"avg_review_score":4.15},{"customer_state":"DF","delivered_orders":2080,"avg_delivery_days":13.0,"late_pct":5.7,"avg_freight":23.86,"avg_review_score":4.13},{"customer_state":"MG","delivered_orders":11354,"avg_delivery_days":12.0,"late_pct":4.6,"avg_freight":23.46,"avg_review_score":4.19},{"customer_state":"SP","delivered_orders":40494,"avg_delivery_days":8.8,"late_pct":4.5,"avg_freight":17.33,"avg_review_score":4.25},{"customer_state":"PR","delivered_orders":4923,"avg_delivery_days":12.0,"late_pct":4.0,"avg_freight":23.49,"avg_review_score":4.24},{"customer_state":"RO","delivered_orders":243,"avg_delivery_days":19.4,"late_pct":2.9,"avg_freight":46.43,"avg_review_score":4.17},{"customer_state":"AM","delivered_orders":145,"avg_delivery_days":26.4,"late_pct":2.8,"avg_freight":37.45,"avg_review_score":4.24}],"delivery_overview":[{"delivered_orders":96470,"avg_delivery_days":12.6,"avg_promised_days":24.4,"late_orders":6534,"late_pct":6.77,"avg_review_score":4.16}],"first_order_late_vs_repeat":[{"first_order_experience":"First order late","customers":3667,"came_back":73,"repeat_rate_pct":1.99},{"first_order_experience":"First order on time","customers":51560,"came_back":1511,"repeat_rate_pct":2.93}],"first_review_vs_repeat":[{"first_order_review":1,"customers":6176,"came_back":140,"repeat_rate_pct":2.27},{"first_order_review":2,"customers":1834,"came_back":39,"repeat_rate_pct":2.13},{"first_order_review":3,"customers":4864,"came_back":124,"repeat_rate_pct":2.55},{"first_order_review":4,"customers":11095,"came_back":299,"repeat_rate_pct":2.69},{"first_order_review":5,"customers":31909,"came_back":1003,"repeat_rate_pct":3.14}],"late_rate_by_month":[{"purchase_month":"2017-01","delivered_orders":750,"avg_delivery_days":12.6,"late_pct":2.9,"avg_review_score":4.2},{"purchase_month":"2017-02","delivered_orders":1653,"avg_delivery_days":13.2,"late_pct":3.0,"avg_review_score":4.2},{"purchase_month":"2017-03","delivered_orders":2546,"avg_delivery_days":13.0,"late_pct":4.6,"avg_review_score":4.19},{"purchase_month":"2017-04","delivered_orders":2303,"avg_delivery_days":14.9,"late_pct":6.6,"avg_review_score":4.14},{"purchase_month":"2017-05","delivered_orders":3545,"avg_delivery_days":11.3,"late_pct":3.0,"avg_review_score":4.24},{"purchase_month":"2017-06","delivered_orders":3135,"avg_delivery_days":12.0,"late_pct":3.0,"avg_review_score":4.22},{"purchase_month":"2017-07","delivered_orders":3872,"avg_delivery_days":11.6,"late_pct":2.8,"avg_review_score":4.26},{"purchase_month":"2017-08","delivered_orders":4193,"avg_delivery_days":11.1,"late_pct":2.9,"avg_review_score":4.31},{"purchase_month":"2017-09","delivered_orders":4150,"avg_delivery_days":11.9,"late_pct":4.4,"avg_review_score":4.27},{"purchase_month":"2017-10","delivered_orders":4478,"avg_delivery_days":11.9,"late_pct":4.2,"avg_review_score":4.2},{"purchase_month":"2017-11","delivered_orders":7288,"avg_delivery_days":15.2,"late_pct":12.4,"avg_review_score":3.99},{"purchase_month":"2017-12","delivered_orders":5513,"avg_delivery_days":15.4,"late_pct":7.5,"avg_review_score":4.09},{"purchase_month":"2018-01","delivered_orders":7069,"avg_delivery_days":14.1,"late_pct":5.7,"avg_review_score":4.11},{"purchase_month":"2018-02","delivered_orders":6555,"avg_delivery_days":16.9,"late_pct":14.1,"avg_review_score":3.88},{"purchase_month":"2018-03","delivered_orders":7003,"avg_delivery_days":16.3,"late_pct":19.0,"avg_review_score":3.81},{"purchase_month":"2018-04","delivered_orders":6798,"avg_delivery_days":11.5,"late_pct":4.5,"avg_review_score":4.21},{"purchase_month":"2018-05","delivered_orders":6749,"avg_delivery_days":11.4,"late_pct":6.6,"avg_review_score":4.24},{"purchase_month":"2018-06","delivered_orders":6096,"avg_delivery_days":9.2,"late_pct":1.2,"avg_review_score":4.31},{"purchase_month":"2018-07","delivered_orders":6156,"avg_delivery_days":9.0,"late_pct":3.4,"avg_review_score":4.32},{"purchase_month":"2018-08","delivered_orders":6351,"avg_delivery_days":7.7,"late_pct":6.2,"avg_review_score":4.31}],"review_by_delay_bucket":[{"delay_bucket":"1. 8+ days early","orders":70929,"avg_review_score":4.32,"pct_1_2_star":9.0},{"delay_bucket":"2. 1-7 days early","orders":17234,"avg_review_score":4.2,"pct_1_2_star":10.2},{"delay_bucket":"3. on estimated day","orders":1280,"avg_review_score":4.03,"pct_1_2_star":12.4},{"delay_bucket":"4. 1-3 days late","orders":1852,"avg_review_score":3.29,"pct_1_2_star":32.1},{"delay_bucket":"5. 4-7 days late","orders":1748,"avg_review_score":2.1,"pct_1_2_star":67.6},{"delay_bucket":"6. 8-14 days late","orders":1446,"avg_review_score":1.67,"pct_1_2_star":80.2},{"delay_bucket":"7. 15+ days late","orders":1335,"avg_review_score":1.72,"pct_1_2_star":78.4}],"review_by_delivery_status":[{"delivery_status":"On time / early","orders":89443,"avg_review_score":4.29,"pct_1_2_star":9.3,"pct_5_star":62.3},{"delivery_status":"Late","orders":6381,"avg_review_score":2.27,"pct_1_2_star":62.4,"pct_5_star":16.5}],"late_orders_concentration":[{"late_rate_decile":1,"sellers":81,"orders":5112,"late_orders":863,"late_pct":16.9,"pct_of_all_late":15.0},{"late_rate_decile":2,"sellers":81,"orders":8218,"late_orders":923,"late_pct":11.2,"pct_of_all_late":16.0},{"late_rate_decile":3,"sellers":81,"orders":14920,"late_orders":1340,"late_pct":9.0,"pct_of_all_late":23.3},{"late_rate_decile":4,"sellers":81,"orders":8526,"late_orders":639,"late_pct":7.5,"pct_of_all_late":11.1},{"late_rate_decile":5,"sellers":80,"orders":15931,"late_orders":926,"late_pct":5.8,"pct_of_all_late":16.1},{"late_rate_decile":6,"sellers":80,"orders":9184,"late_orders":443,"late_pct":4.8,"pct_of_all_late":7.7},{"late_rate_decile":7,"sellers":80,"orders":8528,"late_orders":334,"late_pct":3.9,"pct_of_all_late":5.8},{"late_rate_decile":8,"sellers":80,"orders":5784,"late_orders":175,"late_pct":3.0,"pct_of_all_late":3.0},{"late_rate_decile":9,"sellers":80,"orders":6915,"late_orders":109,"late_pct":1.6,"pct_of_all_late":1.9},{"late_rate_decile":10,"sellers":80,"orders":2788,"late_orders":0,"late_pct":0.0,"pct_of_all_late":0.0}],"lowest_rated_categories":[{"category":"office_furniture","orders":1262,"avg_review_score":3.49,"pct_1_2_star":26.1,"late_pct":7.9},{"category":"unknown","orders":1425,"avg_review_score":3.86,"pct_1_2_star":21.7,"late_pct":7.5},{"category":"bed_bath_table","orders":9295,"avg_review_score":3.9,"pct_1_2_star":18.8,"late_pct":6.9},{"category":"furniture_decor","orders":6375,"avg_review_score":3.92,"pct_1_2_star":19.0,"late_pct":6.9},{"category":"computers_accessories","orders":6616,"avg_review_score":3.95,"pct_1_2_star":18.1,"late_pct":6.4},{"category":"telephony","orders":4154,"avg_review_score":3.95,"pct_1_2_star":16.6,"late_pct":6.9},{"category":"baby","orders":2844,"avg_review_score":4.03,"pct_1_2_star":16.2,"late_pct":7.5},{"category":"watches_gifts","orders":5557,"avg_review_score":4.03,"pct_1_2_star":16.0,"late_pct":7.1},{"category":"consoles_games","orders":1044,"avg_review_score":4.05,"pct_1_2_star":14.6,"late_pct":5.6},{"category":"electronics","orders":2524,"avg_review_score":4.05,"pct_1_2_star":15.5,"late_pct":7.6}],"seller_revenue_concentration":[{"seller_decile":1,"sellers":306,"revenue":9108737.0,"pct_revenue":67.5,"cumulative_pct_revenue":67.5},{"seller_decile":2,"sellers":306,"revenue":2039171.0,"pct_revenue":15.1,"cumulative_pct_revenue":82.6},{"seller_decile":3,"sellers":306,"revenue":1032339.0,"pct_revenue":7.7,"cumulative_pct_revenue":90.3},{"seller_decile":4,"sellers":305,"revenue":550417.0,"pct_revenue":4.1,"cumulative_pct_revenue":94.3},{"seller_decile":5,"sellers":305,"revenue":327304.0,"pct_revenue":2.4,"cumulative_pct_revenue":96.8},{"seller_decile":6,"sellers":305,"revenue":201878.0,"pct_revenue":1.5,"cumulative_pct_revenue":98.3},{"seller_decile":7,"sellers":305,"revenue":117479.0,"pct_revenue":0.9,"cumulative_pct_revenue":99.1},{"seller_decile":8,"sellers":305,"revenue":67216.0,"pct_revenue":0.5,"cumulative_pct_revenue":99.6},{"seller_decile":9,"sellers":305,"revenue":36257.0,"pct_revenue":0.3,"cumulative_pct_revenue":99.9},{"seller_decile":10,"sellers":305,"revenue":13603.0,"pct_revenue":0.1,"cumulative_pct_revenue":100.0}],"seller_scorecard":[{"seller_id":"06a2c3af7b3aee5d69171b0e14f0ee87","seller_state":"MA","delivered_orders":389,"revenue":36409.0,"avg_delivery_days":17.7,"late_pct":19.0,"avg_review_score":4.01},{"seller_id":"88460e8ebdecbfecb5f9601833981930","seller_state":"PR","delivered_orders":246,"revenue":31397.0,"avg_delivery_days":17.8,"late_pct":17.1,"avg_review_score":3.43},{"seller_id":"1ca7077d890b907f89be8c954a02686a","seller_state":"SP","delivered_orders":108,"revenue":13342.0,"avg_delivery_days":15.5,"late_pct":16.7,"avg_review_score":2.39},{"seller_id":"e5a3438891c0bfdb9394643f95273d8e","seller_state":"SP","delivered_orders":216,"revenue":7711.0,"avg_delivery_days":15.7,"late_pct":15.7,"avg_review_score":3.99},{"seller_id":"cd68562d3f44870c08922d380acae552","seller_state":"SP","delivered_orders":122,"revenue":18371.0,"avg_delivery_days":16.3,"late_pct":15.6,"avg_review_score":4.02},{"seller_id":"2c9e548be18521d1c43cde1c582c6de8","seller_state":"SP","delivered_orders":124,"revenue":6109.0,"avg_delivery_days":13.7,"late_pct":15.3,"avg_review_score":4.13},{"seller_id":"f7ba60f8c3f99e7ee4042fdef03b70c4","seller_state":"SP","delivered_orders":218,"revenue":68395.0,"avg_delivery_days":13.4,"late_pct":13.8,"avg_review_score":4.22},{"seller_id":"431af27f296bc6519d890aa5a05fdb11","seller_state":"SP","delivered_orders":116,"revenue":13110.0,"avg_delivery_days":17.2,"late_pct":13.8,"avg_review_score":3.8},{"seller_id":"8160255418d5aaa7dbdc9f4c64ebda44","seller_state":"SP","delivered_orders":380,"revenue":47018.0,"avg_delivery_days":16.2,"late_pct":13.7,"avg_review_score":3.95},{"seller_id":"b499c00f28f4b7069ff6550af8c1348a","seller_state":"SP","delivered_orders":147,"revenue":10327.0,"avg_delivery_days":11.3,"late_pct":12.9,"avg_review_score":4.22},{"seller_id":"7ad32824caee82087b3e2e5f33b1bf32","seller_state":"SP","delivered_orders":147,"revenue":22505.0,"avg_delivery_days":12.1,"late_pct":12.9,"avg_review_score":3.86},{"seller_id":"855668e0971d4dfd7bef1b6a4133b41b","seller_state":"SP","delivered_orders":300,"revenue":31918.0,"avg_delivery_days":16.3,"late_pct":12.7,"avg_review_score":3.85},{"seller_id":"8f2ce03f928b567e3d56181ae20ae952","seller_state":"SP","delivered_orders":151,"revenue":21713.0,"avg_delivery_days":14.4,"late_pct":12.6,"avg_review_score":4.15},{"seller_id":"2e90cb1677d35cfe24eef47d441b7c87","seller_state":"SP","delivered_orders":127,"revenue":13895.0,"avg_delivery_days":12.5,"late_pct":12.6,"avg_review_score":4.12},{"seller_id":"dd7ddc04e1b6c2c614352b383efe2d36","seller_state":"SP","delivered_orders":121,"revenue":9179.0,"avg_delivery_days":15.0,"late_pct":12.4,"avg_review_score":3.88},{"seller_id":"b1fc4f64df5a0e8b6913ab38803c57a9","seller_state":"RJ","delivered_orders":107,"revenue":7995.0,"avg_delivery_days":15.9,"late_pct":12.1,"avg_review_score":3.86},{"seller_id":"b2479f944e1b90cf8a5de1bbfde284d6","seller_state":"SP","delivered_orders":101,"revenue":4717.0,"avg_delivery_days":15.4,"late_pct":11.9,"avg_review_score":3.47},{"seller_id":"c31eff8334d6b3047ed34bebd4d62c36","seller_state":"SP","delivered_orders":120,"revenue":13192.0,"avg_delivery_days":12.7,"late_pct":11.7,"avg_review_score":3.87},{"seller_id":"7aa4334be125fcdd2ba64b3180029f14","seller_state":"SP","delivered_orders":214,"revenue":16235.0,"avg_delivery_days":16.0,"late_pct":11.7,"avg_review_score":4.13},{"seller_id":"7e1fb0a3ebfb01ffb3a7dae98bf3238d","seller_state":"SP","delivered_orders":155,"revenue":27050.0,"avg_delivery_days":15.6,"late_pct":11.6,"avg_review_score":4.19},{"seller_id":"7d13fca15225358621be4086e1eb0964","seller_state":"SP","delivered_orders":558,"revenue":113629.0,"avg_delivery_days":15.7,"late_pct":11.5,"avg_review_score":4.04},{"seller_id":"b33e7c55446eabf8fe1a42d037ac7d6d","seller_state":"SP","delivered_orders":149,"revenue":44985.0,"avg_delivery_days":16.3,"late_pct":11.4,"avg_review_score":4.2},{"seller_id":"59b22a78efb79a4797979612b885db36","seller_state":"MG","delivered_orders":125,"revenue":27185.0,"avg_delivery_days":12.7,"late_pct":11.2,"avg_review_score":3.98},{"seller_id":"2eb70248d66e0e3ef83659f71b244378","seller_state":"SP","delivered_orders":187,"revenue":42629.0,"avg_delivery_days":18.0,"late_pct":11.2,"avg_review_score":2.79},{"seller_id":"c3867b4666c7d76867627c2f7fb22e21","seller_state":"SP","delivered_orders":228,"revenue":36486.0,"avg_delivery_days":15.4,"late_pct":11.0,"avg_review_score":4.08},{"seller_id":"a416b6a846a11724393025641d4edd5e","seller_state":"SP","delivered_orders":157,"revenue":24930.0,"avg_delivery_days":12.5,"late_pct":10.8,"avg_review_score":4.22},{"seller_id":"8b28d096634035667e8263d57ba3368c","seller_state":"SP","delivered_orders":139,"revenue":9288.0,"avg_delivery_days":14.1,"late_pct":10.8,"avg_review_score":4.01},{"seller_id":"0dd184061fb0eaa7ca37932c68ab91c5","seller_state":"SP","delivered_orders":161,"revenue":18447.0,"avg_delivery_days":11.8,"late_pct":10.6,"avg_review_score":4.03},{"seller_id":"897060da8b9a21f655304d50fd935913","seller_state":"SP","delivered_orders":304,"revenue":22724.0,"avg_delivery_days":14.9,"late_pct":10.5,"avg_review_score":3.72},{"seller_id":"4869f7a5dfa277a7dca6462dcf3b52b2","seller_state":"SP","delivered_orders":1124,"revenue":229238.0,"avg_delivery_days":15.1,"late_pct":10.5,"avg_review_score":4.15},{"seller_id":"a673821011d0cec28146ea42f5ab767f","seller_state":"SP","delivered_orders":125,"revenue":13626.0,"avg_delivery_days":13.0,"late_pct":10.4,"avg_review_score":4.02},{"seller_id":"1835b56ce799e6a4dc4eddc053f04066","seller_state":"SP","delivered_orders":417,"revenue":33344.0,"avg_delivery_days":13.2,"late_pct":10.3,"avg_review_score":3.67},{"seller_id":"e9d99831abad74458942f21e16f33f92","seller_state":"SP","delivered_orders":130,"revenue":4922.0,"avg_delivery_days":12.9,"late_pct":10.0,"avg_review_score":3.93},{"seller_id":"cfb1a033743668a192316f3c6d1d2671","seller_state":"SP","delivered_orders":143,"revenue":12754.0,"avg_delivery_days":12.2,"late_pct":9.8,"avg_review_score":4.04},{"seller_id":"4a3ca9315b744ce9f8e9374361493884","seller_state":"SP","delivered_orders":1772,"revenue":200326.0,"avg_delivery_days":14.5,"late_pct":9.7,"avg_review_score":3.85},{"seller_id":"76d5af76d0271110f9af36c92573f765","seller_state":"SP","delivered_orders":128,"revenue":33462.0,"avg_delivery_days":11.9,"late_pct":9.4,"avg_review_score":4.13},{"seller_id":"634964b17796e64304cadf1ad3050fb7","seller_state":"RJ","delivered_orders":265,"revenue":39357.0,"avg_delivery_days":14.7,"late_pct":9.4,"avg_review_score":4.06},{"seller_id":"a3e9a2c700480d9bb01fba070ba80a0e","seller_state":"SP","delivered_orders":129,"revenue":13441.0,"avg_delivery_days":13.2,"late_pct":9.3,"avg_review_score":4.0},{"seller_id":"7d76b645482be4a332374e8223836592","seller_state":"SP","delivered_orders":172,"revenue":3844.0,"avg_delivery_days":13.6,"late_pct":9.3,"avg_review_score":4.0},{"seller_id":"77530e9772f57a62c906e1c21538ab82","seller_state":"PR","delivered_orders":312,"revenue":46471.0,"avg_delivery_days":15.0,"late_pct":9.3,"avg_review_score":4.15},{"seller_id":"70a12e78e608ac31179aea7f8422044b","seller_state":"SP","delivered_orders":312,"revenue":30859.0,"avg_delivery_days":14.7,"late_pct":9.3,"avg_review_score":3.81},{"seller_id":"4c2b230173bb36f9b240f2b8ac11786e","seller_state":"SP","delivered_orders":258,"revenue":14592.0,"avg_delivery_days":12.9,"late_pct":9.3,"avg_review_score":3.98},{"seller_id":"fa1c13f2614d7b5c4749cbc52fecda94","seller_state":"SP","delivered_orders":578,"revenue":192842.0,"avg_delivery_days":13.4,"late_pct":9.2,"avg_review_score":4.37},{"seller_id":"7c67e1448b00f6e969d365cea6b010ab","seller_state":"SP","delivered_orders":973,"revenue":187924.0,"avg_delivery_days":22.3,"late_pct":9.1,"avg_review_score":3.5},{"seller_id":"4e922959ae960d389249c378d1c939f5","seller_state":"SP","delivered_orders":412,"revenue":46030.0,"avg_delivery_days":14.5,"late_pct":9.0,"avg_review_score":3.96},{"seller_id":"fe2032dab1a61af8794248c8196565c9","seller_state":"SP","delivered_orders":293,"revenue":65960.0,"avg_delivery_days":10.8,"late_pct":8.9,"avg_review_score":4.39},{"seller_id":"1f50f920176fa81dab994f9023523100","seller_state":"SP","delivered_orders":1399,"revenue":106889.0,"avg_delivery_days":15.8,"late_pct":8.9,"avg_review_score":4.14},{"seller_id":"8b321bb669392f5163d04c59e235e066","seller_state":"SP","delivered_orders":930,"revenue":17536.0,"avg_delivery_days":12.7,"late_pct":8.7,"avg_review_score":4.1},{"seller_id":"620c87c171fb2a6dd6e8bb4dec959fc6","seller_state":"RJ","delivered_orders":722,"revenue":113659.0,"avg_delivery_days":12.9,"late_pct":8.7,"avg_review_score":4.31},{"seller_id":"522620dcb18a6b31cd7bdf73665113a9","seller_state":"PR","delivered_orders":172,"revenue":57168.0,"avg_delivery_days":15.4,"late_pct":8.7,"avg_review_score":3.91},{"seller_id":"9c0e69c7bf2619675bbadf47b43f655a","seller_state":"SP","delivered_orders":151,"revenue":33632.0,"avg_delivery_days":14.6,"late_pct":8.6,"avg_review_score":4.2},{"seller_id":"391fc6631aebcf3004804e51b40bcf1e","seller_state":"SP","delivered_orders":521,"revenue":39952.0,"avg_delivery_days":14.4,"late_pct":8.6,"avg_review_score":4.04},{"seller_id":"218d46b86c1881d022bce9c68a7d4b15","seller_state":"SP","delivered_orders":382,"revenue":54699.0,"avg_delivery_days":13.9,"late_pct":8.6,"avg_review_score":4.18},{"seller_id":"ea8482cd71df3c1969d7b9473ff13abc","seller_state":"SP","delivered_orders":1132,"revenue":37148.0,"avg_delivery_days":13.3,"late_pct":8.5,"avg_review_score":4.03},{"seller_id":"7ddcbb64b5bc1ef36ca8c151f6ec77df","seller_state":"SP","delivered_orders":325,"revenue":55376.0,"avg_delivery_days":12.7,"late_pct":8.3,"avg_review_score":4.03},{"seller_id":"8581055ce74af1daba164fdbd55a40de","seller_state":"SP","delivered_orders":379,"revenue":64549.0,"avg_delivery_days":13.1,"late_pct":8.2,"avg_review_score":4.31},{"seller_id":"cbd996ad3c1b7dc71fd0e5f5df9087e2","seller_state":"SP","delivered_orders":160,"revenue":8411.0,"avg_delivery_days":12.8,"late_pct":8.1,"avg_review_score":4.21},{"seller_id":"1900267e848ceeba8fa32d80c1a5f5a8","seller_state":"SP","delivered_orders":406,"revenue":24983.0,"avg_delivery_days":13.2,"late_pct":8.1,"avg_review_score":3.86},{"seller_id":"6a8b085f816a1f75f92dbac6eb545f8f","seller_state":"SP","delivered_orders":125,"revenue":6019.0,"avg_delivery_days":14.7,"late_pct":8.0,"avg_review_score":4.16},{"seller_id":"16090f2ca825584b5a147ab24aa30c86","seller_state":"SP","delivered_orders":398,"revenue":25716.0,"avg_delivery_days":9.2,"late_pct":8.0,"avg_review_score":4.09},{"seller_id":"ef506c96320abeedfb894c34db06f478","seller_state":"SP","delivered_orders":316,"revenue":9755.0,"avg_delivery_days":13.5,"late_pct":7.9,"avg_review_score":3.96},{"seller_id":"c9c7905cffc4ef9ff9f113554423e671","seller_state":"SP","delivered_orders":127,"revenue":10657.0,"avg_delivery_days":11.1,"late_pct":7.9,"avg_review_score":4.14},{"seller_id":"37515688008a7a40ac93e3b2e4ab203f","seller_state":"SP","delivered_orders":227,"revenue":5987.0,"avg_delivery_days":15.2,"late_pct":7.9,"avg_review_score":4.1},{"seller_id":"1025f0e2d44d7041d6cf58b6550e0bfa","seller_state":"SP","delivered_orders":910,"revenue":138969.0,"avg_delivery_days":12.4,"late_pct":7.9,"avg_review_score":4.01},{"seller_id":"ef0ace09169ac090589d85746e3e036f","seller_state":"RJ","delivered_orders":128,"revenue":16223.0,"avg_delivery_days":12.8,"late_pct":7.8,"avg_review_score":4.4},{"seller_id":"42b729f859728f5079499127a9c2ef37","seller_state":"SP","delivered_orders":103,"revenue":4119.0,"avg_delivery_days":7.9,"late_pct":7.8,"avg_review_score":4.48},{"seller_id":"e9bc59e7b60fc3063eb2290deda4cced","seller_state":"PR","delivered_orders":209,"revenue":34262.0,"avg_delivery_days":14.3,"late_pct":7.7,"avg_review_score":4.08},{"seller_id":"7040e82f899a04d1b434b795a43b4617","seller_state":"SP","delivered_orders":208,"revenue":9249.0,"avg_delivery_days":10.5,"late_pct":7.7,"avg_review_score":3.65},{"seller_id":"17e34d8224d27a541263c4c64b11a56b","seller_state":"SP","delivered_orders":247,"revenue":55470.0,"avg_delivery_days":14.3,"late_pct":7.7,"avg_review_score":4.25},{"seller_id":"54a1852d1b8f10312c55e906355666ee","seller_state":"SP","delivered_orders":198,"revenue":17226.0,"avg_delivery_days":11.5,"late_pct":7.6,"avg_review_score":4.36},{"seller_id":"e5a38146df062edaf55c38afa99e42dc","seller_state":"SP","delivered_orders":120,"revenue":15360.0,"avg_delivery_days":12.2,"late_pct":7.5,"avg_review_score":3.98},{"seller_id":"de23c3b98a88888289c6f5cc1209054a","seller_state":"SP","delivered_orders":161,"revenue":26221.0,"avg_delivery_days":11.0,"late_pct":7.5,"avg_review_score":4.29},{"seller_id":"c826c40d7b19f62a09e2d7c5e7295ee2","seller_state":"SP","delivered_orders":346,"revenue":45644.0,"avg_delivery_days":13.3,"late_pct":7.5,"avg_review_score":4.13},{"seller_id":"48436dade18ac8b2bce089ec2a041202","seller_state":"SP","delivered_orders":134,"revenue":12272.0,"avg_delivery_days":14.4,"late_pct":7.5,"avg_review_score":4.1},{"seller_id":"f262cbc1c910c83959f849465454ddd3","seller_state":"SP","delivered_orders":189,"revenue":10460.0,"avg_delivery_days":9.1,"late_pct":7.4,"avg_review_score":4.18},{"seller_id":"00ee68308b45bc5e2660cd833c3f81cc","seller_state":"SP","delivered_orders":135,"revenue":20260.0,"avg_delivery_days":9.6,"late_pct":7.4,"avg_review_score":4.3},{"seller_id":"edb1ef5e36e0c8cd84eb3c9b003e486d","seller_state":"RJ","delivered_orders":165,"revenue":79285.0,"avg_delivery_days":11.9,"late_pct":7.3,"avg_review_score":4.44},{"seller_id":"7142540dd4c91e2237acb7e911c4eba2","seller_state":"SP","delivered_orders":316,"revenue":37374.0,"avg_delivery_days":14.7,"late_pct":7.3,"avg_review_score":4.05},{"seller_id":"66922902710d126a0e7d26b0e3805106","seller_state":"MG","delivered_orders":150,"revenue":14362.0,"avg_delivery_days":11.3,"late_pct":7.3,"avg_review_score":4.5},{"seller_id":"f5a590cf36251cf1162ea35bef76fe84","seller_state":"SP","delivered_orders":113,"revenue":51718.0,"avg_delivery_days":11.7,"late_pct":7.1,"avg_review_score":4.27},{"seller_id":"f45122a9ab94eb4f3f8953578bc0c560","seller_state":"SP","delivered_orders":184,"revenue":22078.0,"avg_delivery_days":12.8,"late_pct":7.1,"avg_review_score":3.97},{"seller_id":"25c5c91f63607446a97b143d2d535d31","seller_state":"MG","delivered_orders":156,"revenue":54679.0,"avg_delivery_days":14.5,"late_pct":7.1,"avg_review_score":3.85},{"seller_id":"4371b634e0efc0e22b09b52907d9d469","seller_state":"SP","delivered_orders":101,"revenue":8168.0,"avg_delivery_days":11.1,"late_pct":6.9,"avg_review_score":4.48},{"seller_id":"3b15288545f8928d3e65a8f949a28291","seller_state":"SP","delivered_orders":101,"revenue":14062.0,"avg_delivery_days":14.5,"late_pct":6.9,"avg_review_score":4.08},{"seller_id":"b2ba3715d723d245138f291a6fe42594","seller_state":"SP","delivered_orders":324,"revenue":50968.0,"avg_delivery_days":14.1,"late_pct":6.8,"avg_review_score":4.2},{"seller_id":"dc4a0fc896dc34b0d5bfec8438291c80","seller_state":"SP","delivered_orders":225,"revenue":24181.0,"avg_delivery_days":13.9,"late_pct":6.7,"avg_review_score":3.82},{"seller_id":"da8622b14eb17ae2831f4ac5b9dab84a","seller_state":"SP","delivered_orders":1311,"revenue":160237.0,"avg_delivery_days":11.2,"late_pct":6.6,"avg_review_score":4.18},{"seller_id":"70eea00b476a314817cefde4aad4f89a","seller_state":"SP","delivered_orders":106,"revenue":31995.0,"avg_delivery_days":13.4,"late_pct":6.6,"avg_review_score":4.41},{"seller_id":"213b25e6f54661939f11710a6fddb871","seller_state":"SP","delivered_orders":152,"revenue":15380.0,"avg_delivery_days":15.2,"late_pct":6.6,"avg_review_score":3.81},{"seller_id":"d1c281d3ae149232351cd8c8cc885f0d","seller_state":"SP","delivered_orders":214,"revenue":26943.0,"avg_delivery_days":12.7,"late_pct":6.5,"avg_review_score":3.81},{"seller_id":"ccc4bbb5f32a6ab2b7066a4130f114e3","seller_state":"PR","delivered_orders":184,"revenue":74005.0,"avg_delivery_days":15.9,"late_pct":6.5,"avg_review_score":4.32},{"seller_id":"0be8ff43f22e456b4e0371b2245e4d01","seller_state":"SP","delivered_orders":156,"revenue":11536.0,"avg_delivery_days":10.4,"late_pct":6.4,"avg_review_score":4.03},{"seller_id":"004c9cd9d87a3c30c522c48c4fc07416","seller_state":"SP","delivered_orders":156,"revenue":19713.0,"avg_delivery_days":14.8,"late_pct":6.4,"avg_review_score":4.16},{"seller_id":"8d956fec2e4337affcb520f56fd8cbfd","seller_state":"SP","delivered_orders":210,"revenue":10988.0,"avg_delivery_days":9.3,"late_pct":6.2,"avg_review_score":4.21},{"seller_id":"2e1c9f22be269ef4643f826c9e650a52","seller_state":"SP","delivered_orders":161,"revenue":12640.0,"avg_delivery_days":9.8,"late_pct":6.2,"avg_review_score":4.24},{"seller_id":"001cca7ae9ae17fb1caed9dfb1094831","seller_state":"ES","delivered_orders":195,"revenue":25080.0,"avg_delivery_days":13.4,"late_pct":6.2,"avg_review_score":4.06},{"seller_id":"955fee9216a65b617aa5c0531780ce60","seller_state":"SP","delivered_orders":1261,"revenue":135160.0,"avg_delivery_days":10.8,"late_pct":6.1,"avg_review_score":4.2},{"seller_id":"1554a68530182680ad5c8b042c3ab563","seller_state":"MG","delivered_orders":246,"revenue":29053.0,"avg_delivery_days":14.2,"late_pct":6.1,"avg_review_score":4.33},{"seller_id":"e9779976487b77c6d4ac45f75ec7afe9","seller_state":"SP","delivered_orders":645,"revenue":43128.0,"avg_delivery_days":9.9,"late_pct":6.0,"avg_review_score":4.26},{"seller_id":"8e6cc767478edae941d9bd9eb778d77a","seller_state":"MG","delivered_orders":100,"revenue":6470.0,"avg_delivery_days":16.6,"late_pct":6.0,"avg_review_score":4.06},{"seller_id":"4b9750c8ad28220fe6702d4ecb7c898f","seller_state":"SP","delivered_orders":217,"revenue":15915.0,"avg_delivery_days":9.5,"late_pct":6.0,"avg_review_score":4.36},{"seller_id":"5656537e588803a555b8eb41f07a944b","seller_state":"DF","delivered_orders":171,"revenue":8066.0,"avg_delivery_days":11.3,"late_pct":5.8,"avg_review_score":3.89},{"seller_id":"46dc3b2cc0980fb8ec44634e21d2718e","seller_state":"RJ","delivered_orders":503,"revenue":127161.0,"avg_delivery_days":11.9,"late_pct":5.8,"avg_review_score":4.27},{"seller_id":"3c7c4a49ec3c6550809089c6a2ca9370","seller_state":"SP","delivered_orders":139,"revenue":4034.0,"avg_delivery_days":9.6,"late_pct":5.8,"avg_review_score":3.69},{"seller_id":"dd2bdf855a9172734fbc3744021ae9b9","seller_state":"MG","delivered_orders":105,"revenue":10677.0,"avg_delivery_days":15.3,"late_pct":5.7,"avg_review_score":3.88},{"seller_id":"59fb871bf6f4522a87ba567b42dafecf","seller_state":"SP","delivered_orders":123,"revenue":21709.0,"avg_delivery_days":12.0,"late_pct":5.7,"avg_review_score":4.28},{"seller_id":"0adac9fbd9a2b63cccaac4f8756c1ca8","seller_state":"SP","delivered_orders":106,"revenue":15703.0,"avg_delivery_days":13.1,"late_pct":5.7,"avg_review_score":4.09},{"seller_id":"f4aba7c0bca51484c30ab7bdc34bcdd1","seller_state":"SP","delivered_orders":108,"revenue":3010.0,"avg_delivery_days":11.0,"late_pct":5.6,"avg_review_score":3.94},{"seller_id":"f457c46070d02cadd8a68551231220dd","seller_state":"PR","delivered_orders":195,"revenue":18884.0,"avg_delivery_days":14.5,"late_pct":5.6,"avg_review_score":3.88},{"seller_id":"5dceca129747e92ff8ef7a997dc4f8ca","seller_state":"SP","delivered_orders":322,"revenue":112086.0,"avg_delivery_days":11.6,"late_pct":5.6,"avg_review_score":4.01},{"seller_id":"17a053fcb14bd219540cbde0df490be0","seller_state":"SP","delivered_orders":124,"revenue":40703.0,"avg_delivery_days":12.3,"late_pct":5.6,"avg_review_score":4.25},{"seller_id":"6d66611d7c44cc30ce351abc49a68421","seller_state":"SP","delivered_orders":164,"revenue":13593.0,"avg_delivery_days":12.0,"late_pct":5.5,"avg_review_score":3.97},{"seller_id":"3d871de0142ce09b7081e2b9d1733cb1","seller_state":"SP","delivered_orders":1064,"revenue":94508.0,"avg_delivery_days":13.5,"late_pct":5.5,"avg_review_score":4.19},{"seller_id":"18a349e75d307f4b4cc646a691ed4216","seller_state":"SP","delivered_orders":109,"revenue":8631.0,"avg_delivery_days":11.2,"late_pct":5.5,"avg_review_score":3.6},{"seller_id":"01fdefa7697d26ad920e9e0346d4bd1b","seller_state":"PR","delivered_orders":128,"revenue":14921.0,"avg_delivery_days":10.7,"late_pct":5.5,"avg_review_score":4.38},{"seller_id":"c70c1b0d8ca86052f45a432a38b73958","seller_state":"SP","delivered_orders":260,"revenue":36537.0,"avg_delivery_days":8.1,"late_pct":5.4,"avg_review_score":4.37},{"seller_id":"fa40cc5b934574b62717c68f3d678b6d","seller_state":"SP","delivered_orders":304,"revenue":16006.0,"avg_delivery_days":11.3,"late_pct":5.3,"avg_review_score":4.48},{"seller_id":"d2374cbcbb3ca4ab1086534108cc3ab7","seller_state":"SP","delivered_orders":514,"revenue":21196.0,"avg_delivery_days":14.6,"late_pct":5.3,"avg_review_score":3.78},{"seller_id":"cc419e0650a3c5ba77189a1882b7556a","seller_state":"SP","delivered_orders":1651,"revenue":103635.0,"avg_delivery_days":11.6,"late_pct":5.3,"avg_review_score":4.15},{"seller_id":"bfd27a966d91cfaafdb25d076585f0da","seller_state":"SP","delivered_orders":114,"revenue":19921.0,"avg_delivery_days":12.4,"late_pct":5.3,"avg_review_score":4.32},{"seller_id":"6560211a19b47992c3666cc44a7e94c0","seller_state":"SP","delivered_orders":1819,"revenue":122777.0,"avg_delivery_days":9.6,"late_pct":5.3,"avg_review_score":3.98},{"seller_id":"f80edd2c5aaa505cc4b0a3b219abf4b8","seller_state":"SP","delivered_orders":116,"revenue":8978.0,"avg_delivery_days":12.1,"late_pct":5.2,"avg_review_score":4.15},{"seller_id":"7a67c85e85bb2ce8582c35f2203ad736","seller_state":"SP","delivered_orders":1145,"revenue":141716.0,"avg_delivery_days":11.2,"late_pct":5.2,"avg_review_score":4.28},{"seller_id":"ceaec5548eefc6e23e6607c5435102e7","seller_state":"SP","delivered_orders":198,"revenue":52487.0,"avg_delivery_days":13.0,"late_pct":5.1,"avg_review_score":4.2},{"seller_id":"c003204e1ab016dfa150abc119207b24","seller_state":"SP","delivered_orders":195,"revenue":25108.0,"avg_delivery_days":9.6,"late_pct":5.1,"avg_review_score":4.47},{"seller_id":"a1043bafd471dff536d0c462352beb48","seller_state":"MG","delivered_orders":702,"revenue":101483.0,"avg_delivery_days":13.6,"late_pct":5.0,"avg_review_score":4.28},{"seller_id":"0c8380b62e38e8a1e6adbeba7eb9688c","seller_state":"MG","delivered_orders":180,"revenue":17349.0,"avg_delivery_days":13.0,"late_pct":5.0,"avg_review_score":4.07},{"seller_id":"cca3071e3e9bb7d12640c9fbe2301306","seller_state":"SP","delivered_orders":699,"revenue":63985.0,"avg_delivery_days":14.2,"late_pct":4.9,"avg_review_score":3.89},{"seller_id":"7008613ea464bad5cb9b83456e1e6a8f","seller_state":"SC","delivered_orders":123,"revenue":7777.0,"avg_delivery_days":14.5,"late_pct":4.9,"avg_review_score":4.28},{"seller_id":"4830e40640734fc1c52cd21127c341d4","seller_state":"SP","delivered_orders":204,"revenue":9718.0,"avg_delivery_days":10.0,"late_pct":4.9,"avg_review_score":4.23},{"seller_id":"92eb0f42c21942b6552362b9b114707d","seller_state":"SP","delivered_orders":334,"revenue":6549.0,"avg_delivery_days":13.7,"late_pct":4.8,"avg_review_score":4.02},{"seller_id":"850f4f8af5ea87287ac68de36e29107f","seller_state":"SP","delivered_orders":186,"revenue":45355.0,"avg_delivery_days":10.1,"late_pct":4.8,"avg_review_score":4.3},{"seller_id":"53e4c6e0f4312d4d2107a8c9cddf45cd","seller_state":"SP","delivered_orders":463,"revenue":29969.0,"avg_delivery_days":12.0,"late_pct":4.8,"avg_review_score":4.13},{"seller_id":"41b39e28db005d9731d9d485a83b4c38","seller_state":"SP","delivered_orders":187,"revenue":16873.0,"avg_delivery_days":12.4,"late_pct":4.8,"avg_review_score":4.19},{"seller_id":"813348c996469b40f2e028d5429d3495","seller_state":"SP","delivered_orders":172,"revenue":11206.0,"avg_delivery_days":10.2,"late_pct":4.7,"avg_review_score":4.07},{"seller_id":"7e93a43ef30c4f03f38b393420bc753a","seller_state":"SP","delivered_orders":319,"revenue":172584.0,"avg_delivery_days":11.3,"late_pct":4.7,"avg_review_score":4.36},{"seller_id":"2138ccb85b11a4ec1e37afbd1c8eda1f","seller_state":"SP","delivered_orders":388,"revenue":12264.0,"avg_delivery_days":11.3,"late_pct":4.6,"avg_review_score":3.96},{"seller_id":"1da3aeb70d7989d1e6d9b0e887f97c23","seller_state":"SP","delivered_orders":261,"revenue":8734.0,"avg_delivery_days":8.6,"late_pct":4.6,"avg_review_score":4.17},{"seller_id":"0241d4d5d36f10f80c644447315af0bd","seller_state":"PR","delivered_orders":238,"revenue":31398.0,"avg_delivery_days":11.0,"late_pct":4.6,"avg_review_score":4.35},{"seller_id":"79ebd9a61bac3eaf882805ed4ecfa12a","seller_state":"PR","delivered_orders":133,"revenue":15093.0,"avg_delivery_days":15.4,"late_pct":4.5,"avg_review_score":4.06},{"seller_id":"1c129092bf23f28a5930387c980c0dfc","seller_state":"SP","delivered_orders":200,"revenue":9554.0,"avg_delivery_days":11.8,"late_pct":4.5,"avg_review_score":4.25},{"seller_id":"1b4c3a6f53068f0b6944d2d005c9fc89","seller_state":"SC","delivered_orders":111,"revenue":14760.0,"avg_delivery_days":14.6,"late_pct":4.5,"avg_review_score":4.25},{"seller_id":"a3a38f4affed601eb87a97788c949667","seller_state":"SC","delivered_orders":251,"revenue":26533.0,"avg_delivery_days":12.5,"late_pct":4.4,"avg_review_score":4.4},{"seller_id":"6edacfd9f9074789dad6d62ba7950b9c","seller_state":"SP","delivered_orders":205,"revenue":13137.0,"avg_delivery_days":9.1,"late_pct":4.4,"avg_review_score":4.38},{"seller_id":"669ae81880e08f269a64487cfb287169","seller_state":"SC","delivered_orders":161,"revenue":13134.0,"avg_delivery_days":12.2,"late_pct":4.3,"avg_review_score":4.26},{"seller_id":"640e21a7d01df7614a3b4923e990d40c","seller_state":"SP","delivered_orders":115,"revenue":7599.0,"avg_delivery_days":10.3,"late_pct":4.3,"avg_review_score":4.33},{"seller_id":"f8db351d8c4c4c22c6835c19a46f01b0","seller_state":"SP","delivered_orders":659,"revenue":50499.0,"avg_delivery_days":9.9,"late_pct":4.2,"avg_review_score":4.26},{"seller_id":"7299e27ed73d2ad986de7f7c77d919fa","seller_state":"MG","delivered_orders":335,"revenue":34225.0,"avg_delivery_days":11.3,"late_pct":4.2,"avg_review_score":4.43},{"seller_id":"128639473a139ac0f3e5f5ade55873a5","seller_state":"PR","delivered_orders":527,"revenue":11909.0,"avg_delivery_days":14.3,"late_pct":4.2,"avg_review_score":4.21},{"seller_id":"9f505651f4a6abe901a56cdc21508025","seller_state":"SP","delivered_orders":393,"revenue":26362.0,"avg_delivery_days":8.1,"late_pct":4.1,"avg_review_score":4.37},{"seller_id":"9b013e03b2ab786505a1d3b5c0756754","seller_state":"SP","delivered_orders":170,"revenue":9027.0,"avg_delivery_days":8.6,"late_pct":4.1,"avg_review_score":4.22},{"seller_id":"080102cd0a76b09e0dcf55fcacc60e05","seller_state":"MG","delivered_orders":122,"revenue":5717.0,"avg_delivery_days":9.9,"late_pct":4.1,"avg_review_score":4.52},{"seller_id":"aafe36600ce604f205b86b5084d3d767","seller_state":"SC","delivered_orders":129,"revenue":9251.0,"avg_delivery_days":12.5,"late_pct":3.9,"avg_review_score":4.4},{"seller_id":"87142160b41353c4e5fca2360caf6f92","seller_state":"RS","delivered_orders":305,"revenue":31096.0,"avg_delivery_days":10.9,"late_pct":3.9,"avg_review_score":4.4},{"seller_id":"4d6d651bd7684af3fffabd5f08d12e5a","seller_state":"SP","delivered_orders":363,"revenue":43518.0,"avg_delivery_days":13.0,"late_pct":3.9,"avg_review_score":4.22},{"seller_id":"00fc707aaaad2d31347cf883cd2dfe10","seller_state":"PR","delivered_orders":103,"revenue":12685.0,"avg_delivery_days":15.1,"late_pct":3.9,"avg_review_score":4.08},{"seller_id":"febab0275244b9a49a623f0bd613ca2f","seller_state":"SP","delivered_orders":106,"revenue":7272.0,"avg_delivery_days":8.6,"late_pct":3.8,"avg_review_score":4.44},{"seller_id":"d91fb3b7d041e83b64a00a3edfb37e4f","seller_state":"SP","delivered_orders":524,"revenue":40890.0,"avg_delivery_days":11.3,"late_pct":3.8,"avg_review_score":4.14},{"seller_id":"710e3548e02bc1d2831dfc4f1b5b14d4","seller_state":"PR","delivered_orders":131,"revenue":23979.0,"avg_delivery_days":14.5,"late_pct":3.8,"avg_review_score":3.43},{"seller_id":"537eb890efff034a88679788b647c564","seller_state":"RJ","delivered_orders":158,"revenue":4680.0,"avg_delivery_days":9.1,"late_pct":3.8,"avg_review_score":4.23},{"seller_id":"2528513dd95219a6013d4d05176e391a","seller_state":"SP","delivered_orders":160,"revenue":32660.0,"avg_delivery_days":10.7,"late_pct":3.8,"avg_review_score":3.97},{"seller_id":"1a3df491d1c4f1589fc2b934ada68bf2","seller_state":"SC","delivered_orders":160,"revenue":23303.0,"avg_delivery_days":14.8,"late_pct":3.8,"avg_review_score":4.28},{"seller_id":"0db783cfcd3b73998abc6e10e59a102f","seller_state":"SP","delivered_orders":132,"revenue":9077.0,"avg_delivery_days":11.6,"late_pct":3.8,"avg_review_score":4.21},{"seller_id":"dbb9b48c841a0e39e21f98e1a6b2ec3e","seller_state":"SP","delivered_orders":108,"revenue":7187.0,"avg_delivery_days":9.8,"late_pct":3.7,"avg_review_score":4.27},{"seller_id":"db4350fd57ae30082dec7acbaacc17f9","seller_state":"SP","delivered_orders":136,"revenue":3331.0,"avg_delivery_days":10.8,"late_pct":3.7,"avg_review_score":4.16},{"seller_id":"0b90b6df587eb83608a64ea8b390cf07","seller_state":"PR","delivered_orders":163,"revenue":28592.0,"avg_delivery_days":14.5,"late_pct":3.7,"avg_review_score":4.04},{"seller_id":"de722cd6dad950a92b7d4f82673f8833","seller_state":"PE","delivered_orders":337,"revenue":55426.0,"avg_delivery_days":12.7,"late_pct":3.6,"avg_review_score":4.3},{"seller_id":"5a8e7d5003a1f221f9e1d6e411de7c23","seller_state":"SP","delivered_orders":137,"revenue":11112.0,"avg_delivery_days":10.2,"late_pct":3.6,"avg_review_score":4.17},{"seller_id":"c33847515fa6305ce6feb1e818569f13","seller_state":"SC","delivered_orders":114,"revenue":15520.0,"avg_delivery_days":9.3,"late_pct":3.5,"avg_review_score":3.85},{"seller_id":"95e03ca3d4146e4011985981aeb959b9","seller_state":"RJ","delivered_orders":172,"revenue":11010.0,"avg_delivery_days":12.5,"late_pct":3.5,"avg_review_score":4.02},{"seller_id":"7178f9f4dd81dcef02f62acdf8151e01","seller_state":"SC","delivered_orders":202,"revenue":37070.0,"avg_delivery_days":15.7,"late_pct":3.5,"avg_review_score":4.06},{"seller_id":"44073f8b7e41514de3b7815dd0237f4f","seller_state":"DF","delivered_orders":142,"revenue":18730.0,"avg_delivery_days":13.2,"late_pct":3.5,"avg_review_score":3.74},{"seller_id":"1c68394e931a64f90ea236c5ea590300","seller_state":"PR","delivered_orders":142,"revenue":24833.0,"avg_delivery_days":16.1,"late_pct":3.5,"avg_review_score":3.9},{"seller_id":"53243585a1d6dc2643021fd1853d8905","seller_state":"BA","delivered_orders":348,"revenue":222776.0,"avg_delivery_days":13.4,"late_pct":3.4,"avg_review_score":4.19},{"seller_id":"36a968b544695394e4e9d7572688598f","seller_state":"SP","delivered_orders":148,"revenue":8342.0,"avg_delivery_days":10.7,"late_pct":3.4,"avg_review_score":3.75},{"seller_id":"1e8b33f18b4f7598d87f5cbee2282cc2","seller_state":"SP","delivered_orders":122,"revenue":17309.0,"avg_delivery_days":7.8,"late_pct":3.3,"avg_review_score":4.4},{"seller_id":"b76dba6c951ab00dc4edf0a1aa88037e","seller_state":"SP","delivered_orders":157,"revenue":2575.0,"avg_delivery_days":10.4,"late_pct":3.2,"avg_review_score":4.22},{"seller_id":"8a32e327fe2c1b3511609d81aaf9f042","seller_state":"SP","delivered_orders":126,"revenue":6291.0,"avg_delivery_days":8.9,"late_pct":3.2,"avg_review_score":3.94},{"seller_id":"562fc2f2c2863ab7e79a9e4388a58a14","seller_state":"SP","delivered_orders":255,"revenue":8754.0,"avg_delivery_days":11.3,"late_pct":3.1,"avg_review_score":4.23},{"seller_id":"d94a40fd42351c259927028d163af842","seller_state":"MG","delivered_orders":100,"revenue":13824.0,"avg_delivery_days":13.9,"late_pct":3.0,"avg_review_score":4.21},{"seller_id":"7722b1df1b0e383e000397b2c11e3e19","seller_state":"SP","delivered_orders":133,"revenue":7094.0,"avg_delivery_days":8.4,"late_pct":3.0,"avg_review_score":4.23},{"seller_id":"aaed1309374718fdd995ee4c58c9dfcd","seller_state":"SC","delivered_orders":104,"revenue":9377.0,"avg_delivery_days":12.2,"late_pct":2.9,"avg_review_score":4.06},{"seller_id":"25e6ffe976bd75618accfe16cefcbd0d","seller_state":"SP","delivered_orders":106,"revenue":11592.0,"avg_delivery_days":10.2,"late_pct":2.8,"avg_review_score":4.44},{"seller_id":"37be5a7c751166fbc5f8ccba4119e043","seller_state":"SP","delivered_orders":269,"revenue":55351.0,"avg_delivery_days":10.6,"late_pct":2.6,"avg_review_score":4.33},{"seller_id":"2a84855fd20af891be03bc5924d2b453","seller_state":"MG","delivered_orders":155,"revenue":15524.0,"avg_delivery_days":8.6,"late_pct":2.6,"avg_review_score":4.38},{"seller_id":"dbc22125167c298ef99da25668e1011f","seller_state":"MG","delivered_orders":394,"revenue":33558.0,"avg_delivery_days":11.5,"late_pct":2.5,"avg_review_score":4.32},{"seller_id":"d98eec89afa3380e14463da2aabaea72","seller_state":"RS","delivered_orders":168,"revenue":6969.0,"avg_delivery_days":8.6,"late_pct":2.4,"avg_review_score":4.34},{"seller_id":"86ccac0b835037332a596a33b6949ee1","seller_state":"SC","delivered_orders":178,"revenue":16593.0,"avg_delivery_days":12.1,"late_pct":2.2,"avg_review_score":4.23},{"seller_id":"85d9eb9ddc5d00ca9336a2219c97bb13","seller_state":"MG","delivered_orders":499,"revenue":15383.0,"avg_delivery_days":14.6,"late_pct":2.2,"avg_review_score":4.22},{"seller_id":"b4ffb71f0cb1b1c3d63fad021ecf93e1","seller_state":"SP","delivered_orders":143,"revenue":6656.0,"avg_delivery_days":10.1,"late_pct":2.1,"avg_review_score":4.24},{"seller_id":"cab85505710c7cb9b720bceb52b01cee","seller_state":"SP","delivered_orders":201,"revenue":11389.0,"avg_delivery_days":10.1,"late_pct":2.0,"avg_review_score":4.33},{"seller_id":"ac3508719a1d8f5b7614b798f70af136","seller_state":"RS","delivered_orders":101,"revenue":12776.0,"avg_delivery_days":9.5,"late_pct":2.0,"avg_review_score":4.64},{"seller_id":"5cf13accae3222c70a9cac40818ae839","seller_state":"MG","delivered_orders":148,"revenue":14383.0,"avg_delivery_days":10.7,"late_pct":2.0,"avg_review_score":4.48},{"seller_id":"33a6f4b1e7cdc205511e76ba1b6e0186","seller_state":"SP","delivered_orders":105,"revenue":10295.0,"avg_delivery_days":8.5,"late_pct":1.9,"avg_review_score":4.41},{"seller_id":"6c7d50c24b3ccd2fd83b44d8bb34e073","seller_state":"SP","delivered_orders":112,"revenue":8573.0,"avg_delivery_days":12.3,"late_pct":1.8,"avg_review_score":4.45},{"seller_id":"289cdb325fb7e7f891c38608bf9e0962","seller_state":"SP","delivered_orders":109,"revenue":13545.0,"avg_delivery_days":6.7,"late_pct":1.8,"avg_review_score":4.59},{"seller_id":"1127b7f2594683f2510f1c2c834a486b","seller_state":"SP","delivered_orders":110,"revenue":6670.0,"avg_delivery_days":9.3,"late_pct":1.8,"avg_review_score":4.19},{"seller_id":"229c3efbfb0ea2058de4ccdfbc3d784a","seller_state":"MG","delivered_orders":118,"revenue":15744.0,"avg_delivery_days":10.8,"late_pct":1.7,"avg_review_score":3.62},{"seller_id":"ce27a3cc3c8cc1ea79d11e561e9bebb6","seller_state":"SP","delivered_orders":122,"revenue":10683.0,"avg_delivery_days":10.2,"late_pct":1.6,"avg_review_score":4.19},{"seller_id":"e26901d5ab434ce92fd9b5c256820a4e","seller_state":"SP","delivered_orders":197,"revenue":11911.0,"avg_delivery_days":9.3,"late_pct":1.5,"avg_review_score":4.2},{"seller_id":"259f7b5e6e482c230e5bfaa670b6bb8f","seller_state":"SP","delivered_orders":136,"revenue":8526.0,"avg_delivery_days":8.7,"late_pct":1.5,"avg_review_score":4.35},{"seller_id":"c3cfdc648177fdbbbb35635a37472c53","seller_state":"PR","delivered_orders":278,"revenue":43048.0,"avg_delivery_days":9.7,"late_pct":1.4,"avg_review_score":4.47},{"seller_id":"6cd68b3ed6d59aaa9fece558ad360c0a","seller_state":"MG","delivered_orders":149,"revenue":11189.0,"avg_delivery_days":10.5,"late_pct":1.3,"avg_review_score":4.46},{"seller_id":"8c16d1f32a54d92897cc437244442e1b","seller_state":"SC","delivered_orders":108,"revenue":5643.0,"avg_delivery_days":11.0,"late_pct":0.9,"avg_review_score":4.36},{"seller_id":"612170e34b97004b3ba37eae81836b4c","seller_state":"RS","delivered_orders":107,"revenue":23065.0,"avg_delivery_days":11.0,"late_pct":0.9,"avg_review_score":4.43},{"seller_id":"17ca9b9e9b9ef8fdb529001b49ebb50f","seller_state":"MG","delivered_orders":115,"revenue":9755.0,"avg_delivery_days":8.2,"late_pct":0.9,"avg_review_score":4.07},{"seller_id":"0ea22c1cfbdc755f86b9b54b39c16043","seller_state":"MG","delivered_orders":234,"revenue":10712.0,"avg_delivery_days":11.0,"late_pct":0.9,"avg_review_score":4.4},{"seller_id":"12b9676b00f60f3b700e83af21824c0e","seller_state":"RS","delivered_orders":133,"revenue":26575.0,"avg_delivery_days":15.1,"late_pct":0.8,"avg_review_score":4.55},{"seller_id":"0bae85eb84b9fb3bd773911e89288d54","seller_state":"SP","delivered_orders":136,"revenue":7482.0,"avg_delivery_days":10.3,"late_pct":0.7,"avg_review_score":4.29},{"seller_id":"fc906263ca5083d09dce42fe02247800","seller_state":"MG","delivered_orders":112,"revenue":4498.0,"avg_delivery_days":9.4,"late_pct":0.0,"avg_review_score":4.38}],"top_categories":[{"category":"health_beauty","orders":8800,"product_revenue":1255695.0,"pct_revenue":9.3,"avg_item_price":130.34,"avg_review_score":4.15,"late_pct":7.6},{"category":"watches_gifts","orders":5604,"product_revenue":1198185.0,"pct_revenue":8.9,"avg_item_price":200.7,"avg_review_score":4.03,"late_pct":7.2},{"category":"bed_bath_table","orders":9399,"product_revenue":1035964.0,"pct_revenue":7.7,"avg_item_price":93.36,"avg_review_score":3.9,"late_pct":7.0},{"category":"sports_leisure","orders":7673,"product_revenue":979741.0,"pct_revenue":7.3,"avg_item_price":114.06,"avg_review_score":4.12,"late_pct":6.3},{"category":"computers_accessories","orders":6654,"product_revenue":904322.0,"pct_revenue":6.7,"avg_item_price":116.22,"avg_review_score":3.95,"late_pct":6.5},{"category":"furniture_decor","orders":6425,"product_revenue":727465.0,"pct_revenue":5.4,"avg_item_price":87.67,"avg_review_score":3.92,"late_pct":7.0},{"category":"housewares","orders":5847,"product_revenue":626826.0,"pct_revenue":4.6,"avg_item_price":90.65,"avg_review_score":4.07,"late_pct":5.0},{"category":"cool_stuff","orders":3616,"product_revenue":620770.0,"pct_revenue":4.6,"avg_item_price":164.27,"avg_review_score":4.16,"late_pct":5.8},{"category":"auto","orders":3872,"product_revenue":586586.0,"pct_revenue":4.3,"avg_item_price":139.53,"avg_review_score":4.08,"late_pct":7.0},{"category":"garden_tools","orders":3505,"product_revenue":481010.0,"pct_revenue":3.6,"avg_item_price":111.14,"avg_review_score":4.06,"late_pct":6.6},{"category":"toys","orders":3855,"product_revenue":479809.0,"pct_revenue":3.6,"avg_item_price":117.51,"avg_review_score":4.18,"late_pct":6.4},{"category":"baby","orders":2868,"product_revenue":410312.0,"pct_revenue":3.0,"avg_item_price":134.84,"avg_review_score":4.03,"late_pct":7.7},{"category":"perfumery","orders":3146,"product_revenue":396599.0,"pct_revenue":2.9,"avg_item_price":116.58,"avg_review_score":4.18,"late_pct":6.5},{"category":"telephony","orders":4183,"product_revenue":322343.0,"pct_revenue":2.4,"avg_item_price":71.2,"avg_review_score":3.95,"late_pct":7.0},{"category":"office_furniture","orders":1272,"product_revenue":273581.0,"pct_revenue":2.0,"avg_item_price":161.88,"avg_review_score":3.49,"late_pct":8.0}],"_generated":"2026-11-07"};
+const R = (name) => DATA[name] || [];
+const root = document.documentElement;
+const css = (v) => getComputedStyle(root).getPropertyValue(v).trim();
+const list = (v) => css(v).split(',').map((s) => s.trim());
+
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const mlabel = (s) => `${MON[+s.slice(5, 7) - 1]} ${s.slice(0, 4)}`;
+const mindex = (s) => +s.slice(0, 4) * 12 + (+s.slice(5, 7));
+const nf = (d) => new Intl.NumberFormat('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const f = {
+  int: (v) => v == null ? '–' : nf(0).format(v),
+  brl: (v) => v == null ? '–' : 'R$' + nf(0).format(v),
+  brl2: (v) => v == null ? '–' : 'R$' + nf(2).format(v),
+  brlK: (v) => 'R$' + nf(0).format(v / 1e3) + 'k',
+  brlM: (v) => 'R$' + nf(2).format(v / 1e6) + 'M',
+  pct: (v, d = 1) => v == null ? '–' : nf(d).format(v) + '%',
+  dec: (v, d = 2) => v == null ? '–' : nf(d).format(v),
+  strip: (s) => String(s).replace(/^\d+\.\s*/, ''),
+};
+
+/* ---------- shared building blocks ---------- */
+function tiles(id, items) {
+  document.getElementById(id).innerHTML = items.map((t) => `
+    <div class="tile"><div class="tile-label">${t.label}</div>
+    <div class="tile-value">${t.value}</div>
+    ${t.note ? `<div class="tile-note">${t.note}</div>` : ''}</div>`).join('');
+}
+
+function table(id, cols, rows, open = false) {
+  const el = document.getElementById(id);
+  const head = cols.map((c) => `<th class="${c.num ? 'num' : ''}">${c.label}</th>`).join('');
+  const body = rows.map((r) => `<tr>${cols.map((c) =>
+    `<td class="${c.num ? 'num' : ''}">${c.fmt ? c.fmt(r[c.key], r) : r[c.key]}</td>`).join('')}</tr>`).join('');
+  const tbl = `<div class="tbl-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+  el.innerHTML = open ? tbl : `<details><summary>View as table</summary>${tbl}</details>`;
+}
+
+const crosshair = {
+  id: 'crosshair',
+  afterDatasetsDraw(chart) {
+    const active = chart.tooltip && chart.tooltip.getActiveElements();
+    if (!active || !active.length) return;
+    const x = active[0].element.x, { top, bottom } = chart.chartArea, ctx = chart.ctx;
+    ctx.save(); ctx.strokeStyle = css('--axis'); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke(); ctx.restore();
+  },
+};
+
+function options(o = {}) {
+  const horizontal = o.indexAxis === 'y';
+  const valueAxis = {
+    beginAtZero: o.min == null, min: o.min, max: o.max,
+    grid: { color: css('--grid'), drawTicks: false }, border: { display: false },
+    ticks: { color: css('--ink2'), padding: 8, maxTicksLimit: 6, callback: o.valueFmt || undefined },
+  };
+  const catAxis = {
+    grid: { display: false }, border: { color: css('--axis') },
+    ticks: { color: css('--ink2'), autoSkip: !horizontal, maxRotation: 0, autoSkipPadding: 12 },
+  };
+  return {
+    responsive: true, maintainAspectRatio: false, indexAxis: o.indexAxis || 'x',
+    interaction: o.line ? { mode: 'index', intersect: false } : { mode: 'nearest', intersect: true, axis: horizontal ? 'y' : 'x' },
+    plugins: {
+      legend: {
+        display: !!o.legend, position: 'top', align: 'start',
+        labels: { color: css('--ink2'), boxWidth: 12, boxHeight: 12, useBorderRadius: true, borderRadius: 2 },
+      },
+      tooltip: {
+        backgroundColor: css('--tooltip-bg'), titleColor: css('--ink'), bodyColor: css('--ink2'),
+        borderColor: css('--border-strong'), borderWidth: 1, padding: 10, cornerRadius: 6,
+        displayColors: !!o.legend, callbacks: o.tooltip || {},
+      },
+    },
+    scales: horizontal ? { x: valueAxis, y: catAxis } : { x: catAxis, y: valueAxis },
+    animation: { duration: 250 },
+  };
+}
+
+const bar = (extra = {}) => ({ borderRadius: 4, borderSkipped: 'start', categoryPercentage: 0.8, barPercentage: 0.88, ...extra });
+const line = (color, extra = {}) => ({
+  borderColor: color, backgroundColor: color, borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
+  pointBorderColor: css('--surface'), pointBorderWidth: 2, tension: 0, ...extra,
+});
+
+const charts = {};
+function chart(id, config) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), config);
+}
+
+/* ---------- OVERVIEW ---------- */
+function renderOverview() {
+  const k = R('headline_kpis')[0];
+  const yoy = R('yoy_jan_aug').find((r) => r.year == 2018) || {};
+  tiles('tiles-overview', [
+    { label: 'Revenue', value: f.brlM(k.total_revenue), note: 'item price + freight' },
+    { label: 'Orders', value: f.int(k.total_orders), note: 'excl. canceled / unavailable' },
+    { label: 'Customers', value: f.int(k.total_customers), note: 'unique people' },
+    { label: 'Average order value', value: f.brl2(k.avg_order_value), note: `${f.dec(k.avg_items_per_order)} items per order` },
+    { label: 'Average review', value: `${f.dec(k.avg_review_score)} / 5`, note: '1-5 stars' },
+    { label: 'Revenue growth, Jan-Aug', value: `+${f.pct(yoy.revenue_growth_pct, 0)}`, note: '2018 vs 2017' },
+  ]);
+
+  const m = R('monthly_trend');
+  chart('c-revenue', {
+    type: 'line',
+    data: { labels: m.map((r) => mlabel(r.purchase_month)),
+            datasets: [{ label: 'Revenue', data: m.map((r) => r.revenue), ...line(css('--s1')) }] },
+    options: options({
+      line: true, valueFmt: (v) => f.brlK(v),
+      tooltip: {
+        label: (c) => `Revenue: ${f.brl(c.parsed.y)}`,
+        afterLabel: (c) => { const r = m[c.dataIndex]; return [`Orders: ${f.int(r.orders)}`, `Avg order: ${f.brl2(r.avg_order_value)}`, `vs prior month: ${r.revenue_mom_pct == null ? '–' : (r.revenue_mom_pct > 0 ? '+' : '') + f.pct(r.revenue_mom_pct)}`]; },
+      },
+    }),
+    plugins: [crosshair],
+  });
+  table('tv-revenue', [
+    { key: 'purchase_month', label: 'Month' }, { key: 'orders', label: 'Orders', num: true, fmt: f.int },
+    { key: 'revenue', label: 'Revenue', num: true, fmt: f.brl }, { key: 'avg_order_value', label: 'Avg order', num: true, fmt: f.brl2 },
+    { key: 'revenue_mom_pct', label: 'MoM %', num: true, fmt: (v) => f.pct(v) },
+  ], m);
+
+  const st = R('revenue_by_state').slice(0, 10);
+  chart('c-states', {
+    type: 'bar',
+    data: { labels: st.map((r) => r.customer_state),
+            datasets: [{ label: 'Revenue', data: st.map((r) => r.revenue), backgroundColor: css('--s1'), ...bar() }] },
+    options: options({
+      indexAxis: 'y', valueFmt: (v) => f.brlK(v),
+      tooltip: { label: (c) => { const r = st[c.dataIndex]; return [`Revenue: ${f.brl(r.revenue)} (${f.pct(r.revenue_share_pct)})`, `Orders: ${f.int(r.orders)}`, `Avg freight: ${f.brl2(r.avg_freight)}`]; } },
+    }),
+  });
+  table('tv-states', [
+    { key: 'customer_state', label: 'State' }, { key: 'orders', label: 'Orders', num: true, fmt: f.int },
+    { key: 'revenue', label: 'Revenue', num: true, fmt: f.brl }, { key: 'revenue_share_pct', label: 'Share', num: true, fmt: (v) => f.pct(v) },
+    { key: 'avg_freight', label: 'Avg freight', num: true, fmt: f.brl2 },
+  ], st);
+
+  const p = R('payment_mix');
+  chart('c-payment', {
+    type: 'bar',
+    data: { labels: p.map((r) => r.payment_type.replace('_', ' ')),
+            datasets: [{ label: '% of orders', data: p.map((r) => r.pct_of_orders), backgroundColor: css('--s1'), ...bar() }] },
+    options: options({
+      indexAxis: 'y', valueFmt: (v) => f.pct(v, 0),
+      tooltip: { label: (c) => { const r = p[c.dataIndex]; return [`${f.pct(r.pct_of_orders)} of orders (${f.int(r.orders)})`, `Avg order: ${f.brl2(r.avg_order_value)}`, `Avg instalments: ${f.dec(r.avg_installments, 1)}`]; } },
+    }),
+  });
+  table('tv-payment', [
+    { key: 'payment_type', label: 'Method' }, { key: 'orders', label: 'Orders', num: true, fmt: f.int },
+    { key: 'pct_of_orders', label: '% of orders', num: true, fmt: (v) => f.pct(v) },
+    { key: 'avg_order_value', label: 'Avg order', num: true, fmt: f.brl2 },
+    { key: 'avg_installments', label: 'Avg instalments', num: true, fmt: (v) => f.dec(v, 1) },
+  ], p);
+}
+
+/* ---------- CUSTOMERS ---------- */
+function renderCustomers() {
+  const rr = R('repeat_rate')[0];
+  const curve = R('retention_curve');
+  const gaps = R('days_to_second_purchase');
+  const within90 = gaps.filter((g) => /^[12]\./.test(g.time_to_2nd_purchase)).reduce((s, g) => s + g.pct_of_repeaters, 0);
+  tiles('tiles-customers', [
+    { label: 'One-time customers', value: f.pct(100 - rr.repeat_rate_pct), note: `${f.int(rr.customers - rr.repeat_customers)} of ${f.int(rr.customers)}` },
+    { label: 'Repeat rate', value: f.pct(rr.repeat_rate_pct, 2), note: 'bought on 2+ different days' },
+    { label: 'Back in month 1', value: f.pct(curve[0].retention_pct, 2), note: 'of a cohort, size-weighted' },
+    { label: 'Lifetime spend, repeat', value: f.brl(rr.avg_spend_repeat), note: `<span class="vs">vs ${f.brl(rr.avg_spend_one_time)} one-time</span>` },
+    { label: '2nd purchase within 90 days', value: f.pct(within90, 0), note: 'of customers who came back' },
+  ]);
+
+  renderHeatmap();
+
+  const seg = R('rfm_segment_summary');
+  chart('c-rfm', {
+    type: 'bar',
+    data: { labels: seg.map((r) => r.segment), datasets: [
+      { label: '% of customers', data: seg.map((r) => r.pct_customers), backgroundColor: css('--s1'), ...bar() },
+      { label: '% of revenue', data: seg.map((r) => r.pct_revenue), backgroundColor: css('--s2'), ...bar() },
+    ] },
+    options: options({
+      indexAxis: 'y', legend: true, valueFmt: (v) => f.pct(v, 0),
+      tooltip: {
+        label: (c) => `${c.dataset.label}: ${f.pct(c.parsed.x)}`,
+        afterBody: (items) => { const r = seg[items[0].dataIndex]; return [`${f.int(r.customers)} customers · avg spend ${f.brl(r.avg_spend)}`, `last purchase ~${f.int(r.avg_recency_days)} days ago`]; },
+      },
+    }),
+  });
+  table('tv-rfm', [
+    { key: 'segment', label: 'Segment' }, { key: 'customers', label: 'Customers', num: true, fmt: f.int },
+    { key: 'pct_customers', label: '% cust.', num: true, fmt: (v) => f.pct(v) }, { key: 'pct_revenue', label: '% rev.', num: true, fmt: (v) => f.pct(v) },
+    { key: 'avg_spend', label: 'Avg spend', num: true, fmt: f.brl2 }, { key: 'avg_recency_days', label: 'Recency (days)', num: true, fmt: f.int },
+  ], seg);
+
+  chart('c-curve', {
+    type: 'line',
+    data: { labels: curve.map((r) => `M${r.month_number}`),
+            datasets: [{ label: 'Retention', data: curve.map((r) => r.retention_pct), ...line(css('--s1')) }] },
+    options: options({
+      line: true, valueFmt: (v) => f.pct(v, 1),
+      tooltip: {
+        title: (items) => `Month ${curve[items[0].dataIndex].month_number} after first purchase`,
+        label: (c) => { const r = curve[c.dataIndex]; return `${f.pct(r.retention_pct, 2)} (${f.int(r.active_customers)} of ${f.int(r.customers_observed)})`; },
+      },
+    }),
+    plugins: [crosshair],
+  });
+  table('tv-curve', [
+    { key: 'month_number', label: 'Month' }, { key: 'customers_observed', label: 'Customers observed', num: true, fmt: f.int },
+    { key: 'active_customers', label: 'Bought again', num: true, fmt: f.int }, { key: 'retention_pct', label: 'Retention', num: true, fmt: (v) => f.pct(v, 2) },
+  ], curve);
+
+  chart('c-gap', {
+    type: 'bar',
+    data: { labels: gaps.map((r) => f.strip(r.time_to_2nd_purchase)),
+            datasets: [{ label: '% of repeaters', data: gaps.map((r) => r.pct_of_repeaters), backgroundColor: css('--s1'), ...bar() }] },
+    options: options({ valueFmt: (v) => f.pct(v, 0),
+      tooltip: { label: (c) => `${f.pct(c.parsed.y)} of repeat customers (${f.int(gaps[c.dataIndex].customers)})` } }),
+  });
+  table('tv-gap', [
+    { key: 'time_to_2nd_purchase', label: 'Time to 2nd purchase', fmt: f.strip },
+    { key: 'customers', label: 'Customers', num: true, fmt: f.int }, { key: 'pct_of_repeaters', label: '% of repeaters', num: true, fmt: (v) => f.pct(v) },
+  ], gaps);
+
+  const fr = R('purchase_frequency');
+  chart('c-freq', {
+    type: 'bar',
+    data: { labels: fr.map((r) => `${r.purchase_days} day${r.purchase_days === '1' ? '' : 's'}`),
+            datasets: [{ label: '% of customers', data: fr.map((r) => r.pct_of_customers), backgroundColor: css('--s1'), ...bar() }] },
+    options: options({ valueFmt: (v) => f.pct(v, 0),
+      tooltip: { label: (c) => { const r = fr[c.dataIndex]; return [`${f.pct(r.pct_of_customers, 2)} of customers (${f.int(r.customers)})`, `${f.pct(r.pct_of_revenue, 1)} of revenue`]; } } }),
+  });
+  table('tv-freq', [
+    { key: 'purchase_days', label: 'Purchase days' }, { key: 'customers', label: 'Customers', num: true, fmt: f.int },
+    { key: 'pct_of_customers', label: '% customers', num: true, fmt: (v) => f.pct(v, 2) },
+    { key: 'revenue', label: 'Revenue', num: true, fmt: f.brl }, { key: 'pct_of_revenue', label: '% revenue', num: true, fmt: (v) => f.pct(v, 2) },
+  ], fr);
+}
+
+function hexRgb(h) { return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); }
+function ramp(stops, t) {
+  t = Math.max(0, Math.min(1, t));
+  const pos = (stops.length - 1) * t, i = Math.min(Math.floor(pos), stops.length - 2), w = pos - i;
+  const a = hexRgb(stops[i]), b = hexRgb(stops[i + 1]);
+  return a.map((c, k) => Math.round(c + (b[k] - c) * w));
+}
+
+function renderHeatmap() {
+  const rows = R('cohort_retention');
+  const lastObservable = mindex('2018-08');
+  const cohorts = [...new Set(rows.map((r) => r.cohort_month))].sort()
+    .filter((c) => mindex(c) + 1 <= lastObservable);
+  const lookup = new Map(rows.map((r) => [`${r.cohort_month}|${r.month_number}`, r]));
+  const sizes = new Map(rows.filter((r) => r.month_number === 0).map((r) => [r.cohort_month, r.cohort_customers]));
+  const values = [];
+  cohorts.forEach((c) => { for (let m = 1; m <= 12; m++) if (mindex(c) + m <= lastObservable) values.push(lookup.get(`${c}|${m}`)?.retention_pct ?? 0); });
+  values.sort((a, b) => a - b);
+  const vmax = values[Math.floor(values.length * 0.98)] || 1;
+  const stops = list('--heat');
+
+  let html = '<table class="heat"><thead><tr><th class="row">Cohort</th><th class="num">Customers</th>';
+  for (let m = 1; m <= 12; m++) html += `<th>M${m}</th>`;
+  html += '</tr></thead><tbody>';
+  cohorts.forEach((c) => {
+    const size = sizes.get(c);
+    html += `<tr><th class="row" scope="row">${mlabel(c)}</th><td class="size">${f.int(size)}</td>`;
+    for (let m = 1; m <= 12; m++) {
+      if (mindex(c) + m > lastObservable) { html += '<td></td>'; continue; }
+      const r = lookup.get(`${c}|${m}`);
+      const v = r ? r.retention_pct : 0, n = r ? r.active_customers : 0;
+      const t = v / vmax, rgb = ramp(stops, t);
+      const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+      html += `<td class="cell" style="background:rgb(${rgb});color:${lum < 0.5 ? '#ffffff' : '#0b0b0b'}"
+        title="${mlabel(c)} cohort, month ${m}: ${f.pct(v, 2)} (${f.int(n)} of ${f.int(size)} customers)">${f.dec(v, 2)}</td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('heatmap').innerHTML = html;
+  document.getElementById('heat-legend').style.background = `linear-gradient(90deg, ${stops.join(',')})`;
+  document.getElementById('heat-max').textContent = `${f.pct(vmax, 2)}+`;
+}
+
+/* ---------- DELIVERY ---------- */
+function renderDelivery() {
+  const d = R('delivery_overview')[0];
+  const st = R('review_by_delivery_status');
+  const late = st.find((r) => r.delivery_status === 'Late'), ok = st.find((r) => r.delivery_status !== 'Late');
+  const fl = R('first_order_late_vs_repeat');
+  const flLate = fl.find((r) => r.first_order_experience.includes('late')), flOk = fl.find((r) => r.first_order_experience.includes('on time'));
+  tiles('tiles-delivery', [
+    { label: 'Late deliveries', value: f.pct(d.late_pct), note: `${f.int(d.late_orders)} of ${f.int(d.delivered_orders)} delivered` },
+    { label: 'Avg delivery time', value: `${f.dec(d.avg_delivery_days, 1)} days`, note: `promised: ${f.dec(d.avg_promised_days, 1)} days` },
+    { label: 'Avg review, late orders', value: f.dec(late.avg_review_score), note: `<span class="vs">vs ${f.dec(ok.avg_review_score)} on time</span>` },
+    { label: '1-2 star reviews, late', value: f.pct(late.pct_1_2_star, 0), note: `vs ${f.pct(ok.pct_1_2_star, 0)} on time` },
+    { label: 'Repeat rate after a late 1st order', value: f.pct(flLate.repeat_rate_pct, 2), note: `vs ${f.pct(flOk.repeat_rate_pct, 2)} when on time` },
+  ]);
+
+  const b = R('review_by_delay_bucket');
+  const div = list('--div');
+  chart('c-delay', {
+    type: 'bar',
+    data: { labels: b.map((r) => f.strip(r.delay_bucket)),
+            datasets: [{ label: 'Avg review', data: b.map((r) => r.avg_review_score), backgroundColor: div, ...bar() }] },
+    options: options({ min: 0, max: 5, valueFmt: (v) => v,
+      tooltip: { label: (c) => { const r = b[c.dataIndex]; return [`Avg review: ${f.dec(r.avg_review_score)}`, `1-2 star reviews: ${f.pct(r.pct_1_2_star)}`, `Orders: ${f.int(r.orders)}`]; } } }),
+  });
+  table('tv-delay', [
+    { key: 'delay_bucket', label: 'Delivered', fmt: f.strip }, { key: 'orders', label: 'Orders', num: true, fmt: f.int },
+    { key: 'avg_review_score', label: 'Avg review', num: true, fmt: (v) => f.dec(v) }, { key: 'pct_1_2_star', label: '1-2 stars', num: true, fmt: (v) => f.pct(v) },
+  ], b);
+
+  const m = R('late_rate_by_month');
+  chart('c-late-month', {
+    type: 'line',
+    data: { labels: m.map((r) => mlabel(r.purchase_month)), datasets: [{ label: 'Late %', data: m.map((r) => r.late_pct), ...line(css('--s1')) }] },
+    options: options({ line: true, valueFmt: (v) => f.pct(v, 0),
+      tooltip: { label: (c) => { const r = m[c.dataIndex]; return [`Late: ${f.pct(r.late_pct)}`, `Avg delivery: ${f.dec(r.avg_delivery_days, 1)} days`, `Delivered orders: ${f.int(r.delivered_orders)}`]; } } }),
+    plugins: [crosshair],
+  });
+  chart('c-review-month', {
+    type: 'line',
+    data: { labels: m.map((r) => mlabel(r.purchase_month)), datasets: [{ label: 'Avg review', data: m.map((r) => r.avg_review_score), ...line(css('--s1')) }] },
+    options: options({ line: true, min: 3.6, max: 4.5, valueFmt: (v) => f.dec(v, 1),
+      tooltip: { label: (c) => `Avg review: ${f.dec(c.parsed.y)}` } }),
+    plugins: [crosshair],
+  });
+  const monthCols = [
+    { key: 'purchase_month', label: 'Month' }, { key: 'delivered_orders', label: 'Delivered', num: true, fmt: f.int },
+    { key: 'late_pct', label: 'Late %', num: true, fmt: (v) => f.pct(v) }, { key: 'avg_delivery_days', label: 'Avg days', num: true, fmt: (v) => f.dec(v, 1) },
+    { key: 'avg_review_score', label: 'Avg review', num: true, fmt: (v) => f.dec(v) },
+  ];
+  table('tv-late-month', monthCols, m);
+  table('tv-review-month', monthCols, m);
+
+  const s = R('delivery_by_state');
+  const national = d.late_pct;
+  chart('c-state-late', {
+    type: 'bar',
+    data: { labels: s.map((r) => r.customer_state),
+            datasets: [{ label: 'Late %', data: s.map((r) => r.late_pct),
+                         backgroundColor: s.map((r) => r.late_pct > national * 1.5 ? css('--s1') : css('--neutral')), ...bar() }] },
+    options: options({ indexAxis: 'y', valueFmt: (v) => f.pct(v, 0),
+      tooltip: { label: (c) => { const r = s[c.dataIndex]; return [`Late: ${f.pct(r.late_pct)} (national ${f.pct(national)})`, `Avg delivery: ${f.dec(r.avg_delivery_days, 1)} days`, `Avg review: ${f.dec(r.avg_review_score)}`, `Delivered orders: ${f.int(r.delivered_orders)}`]; } } }),
+  });
+  table('tv-state-late', [
+    { key: 'customer_state', label: 'State' }, { key: 'delivered_orders', label: 'Delivered', num: true, fmt: f.int },
+    { key: 'late_pct', label: 'Late %', num: true, fmt: (v) => f.pct(v) }, { key: 'avg_delivery_days', label: 'Avg days', num: true, fmt: (v) => f.dec(v, 1) },
+    { key: 'avg_freight', label: 'Avg freight', num: true, fmt: f.brl2 }, { key: 'avg_review_score', label: 'Avg review', num: true, fmt: (v) => f.dec(v) },
+  ], s);
+
+  const fr = R('first_review_vs_repeat');
+  chart('c-first', {
+    type: 'bar',
+    data: { labels: fr.map((r) => `${r.first_order_review} star${r.first_order_review > 1 ? 's' : ''}`),
+            datasets: [{ label: 'Repeat rate', data: fr.map((r) => r.repeat_rate_pct), backgroundColor: list('--ord'), ...bar() }] },
+    options: options({ valueFmt: (v) => f.pct(v, 1),
+      tooltip: { label: (c) => { const r = fr[c.dataIndex]; return [`Repeat rate: ${f.pct(r.repeat_rate_pct, 2)}`, `${f.int(r.came_back)} of ${f.int(r.customers)} came back`]; } } }),
+  });
+  table('tv-first', [
+    { key: 'first_order_review', label: 'First review' }, { key: 'customers', label: 'Customers', num: true, fmt: f.int },
+    { key: 'came_back', label: 'Came back', num: true, fmt: f.int }, { key: 'repeat_rate_pct', label: 'Repeat rate', num: true, fmt: (v) => f.pct(v, 2) },
+  ], fr);
+}
+
+/* ---------- SELLERS ---------- */
+function renderSellers() {
+  const conc = R('seller_revenue_concentration');
+  const lateConc = R('late_orders_concentration');
+  const cats = R('top_categories').slice(0, 10);
+  const sellers = conc.reduce((s, r) => s + r.sellers, 0);
+  tiles('tiles-sellers', [
+    { label: 'Active sellers', value: f.int(sellers), note: 'with at least one valid order' },
+    { label: 'Revenue from top 10% sellers', value: f.pct(conc[0].pct_revenue), note: `top 20%: ${f.pct(conc[1].cumulative_pct_revenue)}` },
+    { label: 'Late orders from worst 30%', value: f.pct(lateConc.slice(0, 3).reduce((s, r) => s + r.pct_of_all_late, 0), 0), note: 'sellers with 20+ orders, by late rate' },
+    { label: 'Top category', value: cats[0].category.replace(/_/g, ' '), note: `${f.pct(cats[0].pct_revenue)} of product revenue` },
+  ]);
+
+  chart('c-cats', {
+    type: 'bar',
+    data: { labels: cats.map((r) => r.category.replace(/_/g, ' ')),
+            datasets: [{ label: 'Revenue', data: cats.map((r) => r.product_revenue), backgroundColor: css('--s1'), ...bar() }] },
+    options: options({ indexAxis: 'y', valueFmt: (v) => f.brlK(v),
+      tooltip: { label: (c) => { const r = cats[c.dataIndex]; return [`Revenue: ${f.brl(r.product_revenue)} (${f.pct(r.pct_revenue)})`, `Orders: ${f.int(r.orders)}`, `Avg review: ${f.dec(r.avg_review_score)} · late ${f.pct(r.late_pct)}`]; } } }),
+  });
+  table('tv-cats', [
+    { key: 'category', label: 'Category', fmt: (v) => v.replace(/_/g, ' ') }, { key: 'orders', label: 'Orders', num: true, fmt: f.int },
+    { key: 'product_revenue', label: 'Revenue', num: true, fmt: f.brl }, { key: 'avg_review_score', label: 'Avg review', num: true, fmt: (v) => f.dec(v) },
+    { key: 'late_pct', label: 'Late %', num: true, fmt: (v) => f.pct(v) },
+  ], cats);
+
+  chart('c-deciles', {
+    type: 'bar',
+    data: { labels: conc.map((r) => r.seller_decile === 1 ? 'Top 10%' : `D${r.seller_decile}`),
+            datasets: [{ label: '% of revenue', data: conc.map((r) => r.pct_revenue), backgroundColor: css('--s1'), ...bar() }] },
+    options: options({ valueFmt: (v) => f.pct(v, 0),
+      tooltip: { label: (c) => { const r = conc[c.dataIndex]; return [`${f.pct(r.pct_revenue)} of revenue (${f.brl(r.revenue)})`, `Cumulative: ${f.pct(r.cumulative_pct_revenue)}`, `${f.int(r.sellers)} sellers`]; } } }),
+  });
+  table('tv-deciles', [
+    { key: 'seller_decile', label: 'Decile' }, { key: 'sellers', label: 'Sellers', num: true, fmt: f.int },
+    { key: 'revenue', label: 'Revenue', num: true, fmt: f.brl }, { key: 'pct_revenue', label: '% revenue', num: true, fmt: (v) => f.pct(v) },
+    { key: 'cumulative_pct_revenue', label: 'Cumulative', num: true, fmt: (v) => f.pct(v) },
+  ], conc);
+
+  table('tbl-lowcats', [
+    { key: 'category', label: 'Category', fmt: (v) => v.replace(/_/g, ' ') }, { key: 'orders', label: 'Orders', num: true, fmt: f.int },
+    { key: 'avg_review_score', label: 'Avg review', num: true, fmt: (v) => f.dec(v) }, { key: 'pct_1_2_star', label: '1-2 stars', num: true, fmt: (v) => f.pct(v) },
+    { key: 'late_pct', label: 'Late %', num: true, fmt: (v) => f.pct(v) },
+  ], R('lowest_rated_categories'), true);
+
+  table('tbl-sellers', [
+    { key: 'seller_id', label: 'Seller', fmt: (v) => `${v.slice(0, 8)}…` }, { key: 'seller_state', label: 'State' },
+    { key: 'delivered_orders', label: 'Orders', num: true, fmt: f.int }, { key: 'late_pct', label: 'Late %', num: true, fmt: (v) => f.pct(v) },
+    { key: 'avg_delivery_days', label: 'Avg days', num: true, fmt: (v) => f.dec(v, 1) }, { key: 'avg_review_score', label: 'Avg review', num: true, fmt: (v) => f.dec(v) },
+  ], R('seller_scorecard').slice(0, 10), true);
+}
+
+/* ---------- tabs, theme, boot ---------- */
+const RENDER = { overview: renderOverview, customers: renderCustomers, delivery: renderDelivery, sellers: renderSellers };
+const rendered = new Set();
+let current = 'overview';
+
+function store(key, value) { try { value == null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch (e) { /* storage unavailable */ } }
+function recall(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+
+function show(tab) {
+  if (!RENDER[tab]) tab = 'overview';
+  current = tab;
+  document.querySelectorAll('nav.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+  document.querySelectorAll('.tab-panel').forEach((p) => { p.hidden = p.id !== `tab-${tab}`; });
+  if (!rendered.has(tab)) { RENDER[tab](); rendered.add(tab); }
+  store('olist-dash-tab', tab);
+}
+
+function rerender() {
+  Object.keys(charts).forEach((id) => { charts[id].destroy(); delete charts[id]; });
+  rendered.clear();
+  show(current);
+}
+
+function isDark() {
+  const t = root.dataset.theme;
+  return t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function syncThemeButton() { document.getElementById('theme-btn').textContent = isDark() ? 'Light mode' : 'Dark mode'; }
+
+document.querySelectorAll('nav.tabs button').forEach((b) => b.addEventListener('click', () => show(b.dataset.tab)));
+document.getElementById('theme-btn').addEventListener('click', () => {
+  root.dataset.theme = isDark() ? 'light' : 'dark';
+  store('olist-dash-theme', root.dataset.theme);
+  syncThemeButton(); rerender();
+});
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!root.dataset.theme) { syncThemeButton(); rerender(); } });
+
+(function boot() {
+  const savedTheme = recall('olist-dash-theme');
+  if (savedTheme === 'light' || savedTheme === 'dark') root.dataset.theme = savedTheme;
+  syncThemeButton();
+  const k = R('headline_kpis')[0];
+  document.getElementById('subtitle').textContent =
+    `Olist Brazilian e-commerce public dataset · ${f.int(k.total_orders)} valid orders, ${k.first_order_date} to ${k.last_order_date} · monthly trends Jan-2017 to Aug-2018 · values in R$`;
+  document.getElementById('footer').textContent =
+    `Built from the SQL results in outputs/sql_results (generated ${DATA._generated}). Every chart has a "View as table" option.`;
+  if (typeof Chart === 'undefined') {
+    document.querySelectorAll('.chart').forEach((c) => { c.innerHTML = '<p class="card-sub">Charts need an internet connection to load Chart.js. The tables below still work.</p>'; c.style.height = 'auto'; });
+    window.Chart = function () { return { destroy() {} }; };
+  } else {
+    Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+    Chart.defaults.font.size = 12;
+  }
+  show(recall('olist-dash-tab') || 'overview');
+})();
+</script>
+</body>
+</html>

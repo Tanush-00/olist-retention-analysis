@@ -1,0 +1,8 @@
+segment,customers,pct_customers,avg_recency_days,avg_frequency,avg_spend,revenue,pct_revenue
+High-Value New,14708,15.5,98.0,1.0,303.16,4458945.0,28.3
+At Risk - High Value,14361,15.1,401.0,1.0,310.13,4453787.0,28.3
+Need Attention,18610,19.6,226.0,1.0,153.48,2856305.0,18.2
+Lost - Low Value,23041,24.3,403.0,1.0,72.92,1680142.0,10.7
+New - Low Spend,22198,23.4,96.0,1.0,73.12,1623125.0,10.3
+Champions,1088,1.1,93.0,2.14,326.78,355541.0,2.3
+Loyal - Lapsing,977,1.0,315.0,2.07,314.92,307681.0,2.0

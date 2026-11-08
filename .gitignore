@@ -1,0 +1,16 @@
+# Large / regenerated data (rebuild with: python run_pipeline.py)
+data/raw/
+data/processed/
+database/
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
