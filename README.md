@@ -5,7 +5,7 @@
 
 An end-to-end analysis of ~100k orders from Olist, a Brazilian online marketplace. It uses **SQL** (data modelling, cohort analysis, RFM segmentation, window functions), **Python** (pandas, matplotlib, statistical testing) and an **interactive dashboard** (HTML + Power BI guide), and ends with business recommendations sized in money.
 
-| | |
+| Item | Details |
 |---|---|
 | **Data** | [Olist Brazilian E-commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce): 9 relational tables, 99,441 orders, Sep-2016 to Oct-2018 |
 | **Tools** | SQL (SQLite) · Python (pandas, NumPy, matplotlib) · Jupyter · Chart.js dashboard · Power BI |
