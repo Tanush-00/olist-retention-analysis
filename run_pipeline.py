@@ -4,8 +4,8 @@ Run the whole project end to end:
     python run_pipeline.py                  # everything
     python run_pipeline.py --skip-notebook  # skip re-executing the notebook
 
-Steps: download data -> load SQLite -> run SQL -> export Power BI tables
-       -> build HTML dashboard -> execute the analysis notebook.
+Steps: download data -> load SQLite -> run SQL -> stress-test the late-first-order finding
+       -> export Power BI tables -> build HTML dashboard -> execute the analysis notebook.
 """
 import subprocess
 import sys
@@ -19,6 +19,7 @@ STEPS = [
     ("Download dataset", [PY, "scripts/download_data.py"]),
     ("Load CSVs into SQLite", [PY, "scripts/load_data.py"]),
     ("Run SQL analysis", [PY, "scripts/run_sql.py"]),
+    ("Stress-test the late-first-order finding", [PY, "scripts/robustness_check.py"]),
     ("Export Power BI tables", [PY, "scripts/export_powerbi.py"]),
     ("Build HTML dashboard", [PY, "scripts/build_dashboard.py"]),
     ("Execute analysis notebook", [PY, "-m", "nbconvert", "--to", "notebook", "--execute", "--inplace",
