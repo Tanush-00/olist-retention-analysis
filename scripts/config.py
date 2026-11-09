@@ -8,6 +8,7 @@ PROCESSED_DIR = ROOT / "data" / "processed"
 DB_PATH = ROOT / "database" / "olist.db"
 SQL_DIR = ROOT / "sql"
 SQL_RESULTS_DIR = ROOT / "outputs" / "sql_results"
+ROBUSTNESS_DIR = ROOT / "outputs" / "robustness"
 FIGURES_DIR = ROOT / "outputs" / "figures"
 DASHBOARD_DIR = ROOT / "dashboard"
 
